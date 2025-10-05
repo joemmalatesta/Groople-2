@@ -1,4 +1,5 @@
-import { db } from './index';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import { categories } from './schema';
 
 const dummyCategories = [
@@ -17,6 +18,17 @@ const dummyCategories = [
 ];
 
 export async function seedCategories() {
+	// Get DATABASE_URL from environment variable
+	const DATABASE_URL = process.env.DATABASE_URL;
+
+	if (!DATABASE_URL) {
+		throw new Error('DATABASE_URL environment variable is not set');
+	}
+
+	// Create database connection
+	const client = postgres(DATABASE_URL);
+	const db = drizzle(client, { schema: { categories } });
+
 	try {
 		console.log('Seeding categories...');
 
@@ -27,6 +39,9 @@ export async function seedCategories() {
 	} catch (error) {
 		console.error('Error seeding categories:', error);
 		throw error;
+	} finally {
+		// Close the database connection
+		await client.end();
 	}
 }
 
