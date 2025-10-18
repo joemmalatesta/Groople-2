@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import 'tailwindcss';
 
@@ -7,9 +6,21 @@
 	--font-inter: 'Inter', sans-serif;
 }
 
-body {
-	font-family: var(--font-inter);
-}
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
 	font-family: var(--font-instrument-serif);
+}
+
+body {
+	background-color: #f2f2f2;
+	color: #1a1a1a;
+}
+
+.dark body {
+	background-color: #1a1a1a;
+	color: #f2f2f2;
 }

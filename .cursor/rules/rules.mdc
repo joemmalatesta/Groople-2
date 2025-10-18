@@ -1,0 +1,48 @@
+---
+alwaysApply: true
+---
+
+# Cursor Rules for Groople 2
+
+## CSS Styling Rules
+- **ALWAYS use Tailwind CSS classes** instead of custom CSS
+- **NEVER write custom CSS** in `<style>` blocks in Svelte components
+- **NEVER use CSS variables** like `var(--text-primary)` - use Tailwind color classes instead
+- **NEVER use custom CSS selectors** - use Tailwind utility classes
+
+## Tailwind CSS Guidelines
+- Use semantic color classes: `text-gray-900`, `bg-blue-500`, `border-gray-200`
+- Use responsive prefixes when needed: `md:flex-row`, `lg:w-1/2`
+- Use state variants: `hover:bg-blue-600`, `focus:outline-none`, `disabled:opacity-50`
+- Use spacing utilities: `p-4`, `m-2`, `gap-4`, `space-y-2`
+- Use flexbox utilities: `flex`, `items-center`, `justify-between`
+- Use sizing utilities: `w-full`, `h-12`, `min-w-6`, `max-w-md`
+
+## Component Structure
+- Keep components simple and focused
+- Use props for customization instead of CSS overrides
+- Prefer composition over complex styling
+
+## Examples of Good Tailwind Usage
+```svelte
+<!-- Good: Using Tailwind classes -->
+<div class="flex items-center gap-4 py-3 border-b border-gray-200">
+  <span class="text-gray-900 font-medium text-base">Text</span>
+  <input class="bg-transparent border-0 border-b-2 border-gray-300 py-2 focus:outline-none focus:border-blue-500" />
+</div>
+
+<!-- Bad: Custom CSS -->
+<div class="custom-container">
+  <span class="custom-text">Text</span>
+  <input class="custom-input" />
+</div>
+<style>
+  .custom-container { display: flex; align-items: center; }
+  .custom-text { color: var(--text-primary); }
+</style>
+```
+
+## File Organization
+- Keep all styling in Tailwind classes
+- Remove any existing `<style>` blocks
+- Use Tailwind's built-in design system

@@ -1,21 +1,22 @@
 import { createBrowserClient } from '@supabase/ssr';
 
 export function createClient() {
-	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-	const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+	// Hardcoded values for development (not using Supabase currently)
+	const supabaseUrl = 'https://placeholder.supabase.co';
+	const supabaseAnonKey = 'placeholder-anon-key';
 
-	if (!supabaseUrl || !supabaseAnonKey) {
-		console.warn('Supabase URL or Anon Key not found. Please check your environment variables.');
-		// Return a mock client to prevent errors
-		return {
-			from: () => ({
-				select: () => ({ data: [], error: { message: 'Supabase not configured' } })
-			}),
-			auth: {
-				getSession: () => Promise.resolve({ data: { session: null }, error: null })
-			}
-		} as any;
-	}
-
-	return createBrowserClient(supabaseUrl, supabaseAnonKey);
+	// Return a mock client since we're not using Supabase
+	return {
+		from: () => ({
+			select: () => ({ data: [], error: null }),
+			insert: () => ({ data: [], error: null }),
+			update: () => ({ data: [], error: null }),
+			delete: () => ({ data: [], error: null })
+		}),
+		auth: {
+			getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+			signIn: () => Promise.resolve({ data: { user: null }, error: null }),
+			signOut: () => Promise.resolve({ error: null })
+		}
+	} as any;
 }

@@ -23,6 +23,9 @@ importers:
       ai:
         specifier: ^5.0.60
         version: 5.0.60(zod@4.1.11)
+      phosphor-svelte:
+        specifier: ^3.0.1
+        version: 3.0.1(svelte@5.39.8)(vite@7.1.9(@types/node@20.19.19)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.6))
       postgres:
         specifier: ^3.4.7
         version: 3.4.7
@@ -1687,6 +1690,15 @@ packages:
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
+
+  phosphor-svelte@3.0.1:
+    resolution: {integrity: sha512-QuxdzWCBjNZXglk4XpmaKb+JRA6XgKOYWpBY8k82NZwxO5ec7u2iFuueAijKYgj/7hLWHtreAPc2Q5uZFNTRSQ==}
+    peerDependencies:
+      svelte: ^5.0.0 || ^5.0.0-next.96
+      vite: '>=5'
+    peerDependenciesMeta:
+      vite:
+        optional: true
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -3526,6 +3538,14 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
+
+  phosphor-svelte@3.0.1(svelte@5.39.8)(vite@7.1.9(@types/node@20.19.19)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.6)):
+    dependencies:
+      estree-walker: 3.0.3
+      magic-string: 0.30.19
+      svelte: 5.39.8
+    optionalDependencies:
+      vite: 7.1.9(@types/node@20.19.19)(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.6)
 
   picocolors@1.1.1: {}
 
