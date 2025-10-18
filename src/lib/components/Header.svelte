@@ -13,11 +13,16 @@
 	// Start the timer countdown
 	function startTimer() {
 		timerInterval = setInterval(() => {
-			if (timer > 0) {
+			if (timer > 0 || milliseconds > 0) {
 				milliseconds -= 20;
 				if (milliseconds < 0) {
-					milliseconds = 980;
-					timer--;
+					if (timer > 0) {
+						milliseconds = 980;
+						timer--;
+					} else {
+						milliseconds = 0;
+						clearInterval(timerInterval);
+					}
 				}
 			} else {
 				clearInterval(timerInterval);

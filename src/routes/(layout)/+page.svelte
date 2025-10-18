@@ -32,6 +32,9 @@
 			goto(`?tz=${encodeURIComponent(timezone)}`, { replaceState: true });
 		}
 
+		// Initialize scroll position immediately
+		scrollPosition = window.scrollY;
+
 		// Throttled scroll listener for performance
 		let ticking = false;
 		const handleScroll = () => {
@@ -95,11 +98,10 @@
 					}}
 				class="w-full"
 			>
-				<!-- Have this here, so the letter is sent with the form details. I'm sure theres a better way -->
 				<input type="text" value={letter} class="hidden" name="letter" />
 				{#each categories as category, index}
 					{#key responseArray}
-						<div class="my-1 w-full">
+						<div class="w-full">
 							<Category
 								index={index + 1}
 								{category}
