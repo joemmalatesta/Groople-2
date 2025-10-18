@@ -32,6 +32,6 @@
 	</script>
 </svelte:head>
 
-<div class="bg-app-light dark:bg-app-dark min-h-screen">
+<div class="min-h-screen bg-light text-dark dark:bg-dark dark:text-light">
 	{@render children?.()}
 </div>

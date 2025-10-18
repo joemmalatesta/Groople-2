@@ -1,7 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{html,js,svelte,ts}'],
-  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -9,8 +8,8 @@ export default {
         'inter': ['Inter', 'sans-serif'],
       },
       colors: {
-        'app-light': '#f2f2f2',
-        'app-dark': '#1a1a1a',
+        'light': '#f2f2f2',
+        'dark': '#1a1a1a',
       },
     },
   },

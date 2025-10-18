@@ -16,11 +16,13 @@
 	const letter = data.letter;
 
 	// Game state
-	let responseArray: string[] = [];
+	let responseArray: boolean[] = [];
 	let answerArray: string[] = [];
 	let answersSubmitted = false;
 	let modalActive = false;
 	let formElement: HTMLFormElement;
+	let validationResults: boolean[] = [];
+	let isValidating = false;
 
 	// Scroll position tracking for smooth transitions
 	let scrollPosition = 0;
@@ -51,16 +53,25 @@
 		return () => window.removeEventListener('scroll', handleScroll);
 	});
 
-	function handleResponse(formData: any) {
-		// Handle form submission response
-		console.log('Form submitted:', formData);
+	function handleValidationResponse(result: any) {
+		console.log('Validation result:', result);
+
+		if (result.type === 'success' && result.data?.validationResults) {
+			validationResults = result.data.validationResults;
+			responseArray = validationResults;
+			answersSubmitted = true;
+			console.log('Validation results:', validationResults);
+			console.log('Response array:', responseArray);
+		} else {
+			console.error('Validation failed:', result.data?.error || 'Unknown error');
+		}
 	}
 </script>
 
-<main class="bg-app-light dark:bg-app-dark mx-auto min-h-screen max-w-3xl">
+<main class="mx-auto min-h-screen max-w-3xl">
 	<!-- Always visible top bar -->
 	<div
-		class="bg-app-light/95 dark:bg-app-dark/95 sticky top-0 z-10 flex items-center justify-between px-4 backdrop-blur-sm dark:border-gray-700"
+		class="sticky top-0 z-10 flex items-center justify-between bg-light/60 px-4 backdrop-blur-sm dark:bg-dark/60"
 	>
 		{#if $theme === 'dark'}
 			<img src="/favicon-light.svg" alt="Groople Logo" class="h-8 w-8" />
@@ -91,10 +102,13 @@
 			<form
 				bind:this={formElement}
 				method="POST"
+				action="?/validate"
 				use:enhance={() =>
 					async ({ result, update }) => {
+						isValidating = true;
 						await update();
-						if (result.type === 'success') handleResponse(result.data); // `result.data` === `form`
+						handleValidationResponse(result);
+						isValidating = false;
 					}}
 				class="w-full"
 			>
@@ -106,13 +120,20 @@
 								index={index + 1}
 								{category}
 								{letter}
-								valid={responseArray[index] ? responseArray[index].toLowerCase() : ''}
+								valid={responseArray[index] ? 'yes' : 'no'}
 								{answersSubmitted}
 								disabled={modalActive}
 							/>
 						</div>
 					{/key}
 				{/each}
+				<button
+					type="submit"
+					class="w-full cursor-pointer rounded-md bg-dark p-2 text-light outline disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
+					disabled={isValidating}
+				>
+					{isValidating ? 'Validating...' : 'Submit'}
+				</button>
 			</form>
 		</div>
 	</div>

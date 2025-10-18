@@ -44,14 +44,14 @@
 <div class="flex w-full justify-around gap-7 pt-4 pb-2">
 	<div class="flex flex-col items-center">
 		<h3
-			class="text-app-dark dark:text-app-light m-0 {inTopBar
+			class="text-dark dark:text-light m-0 {inTopBar
 				? 'hidden'
 				: 'mb-2 text-base md:mb-4 md:text-xl'} font-semibold underline"
 		>
 			Letter
 		</h3>
 		<div
-			class="text-app-dark dark:text-app-light m-0 {inTopBar
+			class="text-dark dark:text-light m-0 {inTopBar
 				? 'text-2xl'
 				: 'text-5xl md:text-6xl'} font-bold"
 		>
@@ -61,14 +61,14 @@
 
 	<div class="flex w-16 flex-col items-center md:w-32">
 		<h3
-			class="text-app-dark dark:text-app-light m-0 {inTopBar
+			class="text-dark dark:text-light m-0 {inTopBar
 				? 'hidden'
 				: 'mb-2 text-base md:mb-4 md:text-xl'} font-semibold underline"
 		>
 			Time
 		</h3>
 		<div
-			class="text-app-dark dark:text-app-light m-0 {inTopBar
+			class="text-dark dark:text-light m-0 {inTopBar
 				? 'text-2xl'
 				: 'text-5xl md:text-6xl'} relative cursor-pointer font-bold tabular-nums"
 			role="button"

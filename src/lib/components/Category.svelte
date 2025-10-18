@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { toLowerCase } from "zod";
+	import { toLowerCase } from 'zod';
 
 	export let index: number;
 	export let category: string;
@@ -10,12 +10,18 @@
 
 	let inputValue = '';
 	let isValid = false;
+	let validationResult: boolean | null = null;
 
 	$: {
-		// Use the valid prop if provided, otherwise check if input starts with letter
-		if (valid) {
+		// If we have a validation result, use that
+		if (valid === 'yes' || valid === 'no') {
+			validationResult = valid === 'yes';
+			isValid = validationResult;
+		} else if (valid) {
+			// Legacy: check if valid prop matches input
 			isValid = valid === inputValue.toLowerCase();
 		} else if (inputValue.toLowerCase().startsWith(letter.toLowerCase())) {
+			// Default: check if input starts with letter
 			isValid = true;
 		} else {
 			isValid = false;
@@ -23,18 +29,29 @@
 	}
 </script>
 
-<div class="flex items-center gap-4 py-3">
-	<span class="text-app-dark dark:text-app-light min-w-6 text-base font-medium">{index}.</span>
-	<span class="text-app-dark dark:text-app-light flex-1 text-base font-medium">{category}</span>
-	<input
-		type="text"
-		bind:value={inputValue}
-		placeholder={letter.toUpperCase()}...
-		disabled={disabled || answersSubmitted} 
-		class="text-app-dark dark:text-app-light w-48 border-0 border-b-2 border-gray-300 bg-transparent py-2 text-base transition-colors duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:placeholder:text-gray-500 dark:focus:border-blue-400 {inputValue && inputValue[0].toLowerCase() == letter.toLowerCase() 
-			? 'border-green-500 dark:border-green-400'
-			: inputValue
-				? 'border-red-500 dark:border-red-400'
-				: ''} {disabled || answersSubmitted ? 'cursor-not-allowed opacity-60' : ''}"
-	/>
+<div class="flex flex-col justify-between py-1 md:flex-row md:items-center md:gap-4">
+	<div class="flex items-center md:gap-2">
+		<span class="min-w-6 text-base font-medium text-dark dark:text-light">{index}.</span>
+		<span class="flex-1 text-base font-medium text-dark dark:text-light">{category}</span>
+	</div>
+	<div class="relative mb-7 md:mb-0 md:w-7/12">
+		<input
+			type="text"
+			bind:value={inputValue}
+			name="answer-{index}"
+			placeholder="{letter.toUpperCase()}..."
+			disabled={disabled || answersSubmitted}
+			class="w-full border-b border-gray-300 py-2 text-base text-dark transition-colors duration-200 placeholder:text-gray-400 focus:outline-none
+			  dark:border-gray-600 dark:text-light dark:placeholder:text-light/50"
+		/>
+		{#if answersSubmitted && validationResult !== null}
+			<div class="absolute top-1/2 right-0 -translate-y-1/2 text-sm font-medium">
+				{#if validationResult}
+					<span class="text-green-600 dark:text-green-400">✓</span>
+				{:else}
+					<span class="text-red-600 dark:text-red-400">✗</span>
+				{/if}
+			</div>
+		{/if}
+	</div>
 </div>

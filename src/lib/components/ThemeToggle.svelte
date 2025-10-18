@@ -12,7 +12,7 @@
 
 <button
 	onclick={toggleTheme}
-	class="bg-app-light/50 hover:bg-app-light/70 dark:bg-app-dark/50 dark:hover:bg-app-dark/70 rounded-lg p-2 transition-colors duration-200"
+	class="bg-light/50 hover:bg-light/70 dark:bg-dark/50 dark:hover:bg-dark/70 rounded-lg p-2 transition-colors duration-200"
 	aria-label="Toggle theme"
 	title="Toggle theme"
 >
@@ -22,14 +22,14 @@
 				this={Moon}
 				size={20}
 				weight="fill"
-				class="text-app-dark/80 dark:text-app-light/80"
+				class="text-dark/80 dark:text-light/80"
 			/>
 		{:else}
 			<svelte:component
 				this={Sun}
 				size={20}
 				weight="fill"
-				class="text-app-dark/80 dark:text-app-light/80"
+				class="text-dark/80 dark:text-light/80"
 			/>
 		{/if}
 	{/if}
