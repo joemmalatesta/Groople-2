@@ -7,6 +7,11 @@ describe('localDateInTimezone', () => {
 		expect(localDateInTimezone('UTC')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 		expect(localDateInTimezone('America/Los_Angeles')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 	});
+
+	it('rejects invalid timezones', () => {
+		expect(() => localDateInTimezone('Not/AZone')).toThrow('Invalid timezone');
+		expect(() => localDateInTimezone('')).toThrow('Invalid timezone');
+	});
 });
 
 describe('parsePlayerId', () => {
@@ -15,12 +20,8 @@ describe('parsePlayerId', () => {
 		expect(parsePlayerId(id)).toBe(id);
 	});
 
-	it('replaces missing or invalid values', () => {
-		expect(parsePlayerId(null)).toMatch(
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-		);
-		expect(parsePlayerId('not-a-uuid')).toMatch(
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-		);
+	it('rejects missing or invalid values', () => {
+		expect(parsePlayerId(null)).toBeNull();
+		expect(parsePlayerId('not-a-uuid')).toBeNull();
 	});
 });

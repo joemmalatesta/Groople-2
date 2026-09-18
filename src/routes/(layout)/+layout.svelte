@@ -34,4 +34,14 @@
 
 <div class="min-h-screen bg-light text-dark dark:bg-dark dark:text-light">
 	{@render children?.()}
+	<footer class="mb-3 flex justify-center">
+		<h4 class="font-inter! text-sm">
+			Created by
+			<a
+				href="https://joemmalatesta.com"
+				class="underline underline-offset-2 transition-all hover:underline-offset-4"
+				>Joe Malatesta</a
+			>
+		</h4>
+	</footer>
 </div>

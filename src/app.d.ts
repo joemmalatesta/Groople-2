@@ -20,4 +20,24 @@ declare module 'phosphor-svelte/lib/Moon' {
 	export default Moon;
 }
 
+declare module 'phosphor-svelte/lib/User' {
+	const User: any;
+	export default User;
+}
+
+declare module 'phosphor-svelte/lib/Globe' {
+	const Globe: any;
+	export default Globe;
+}
+
+declare module 'phosphor-svelte/lib/Fire' {
+	const Fire: any;
+	export default Fire;
+}
+
+declare module 'phosphor-svelte/lib/X' {
+	const X: any;
+	export default X;
+}
+
 export {};

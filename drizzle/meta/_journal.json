@@ -29,6 +29,34 @@
       "when": 1789687943401,
       "tag": "0003_daily_puzzles",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789694166000,
+      "tag": "0004_yes_probability",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789698000000,
+      "tag": "0005_plays_once_per_day",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789699200000,
+      "tag": "0006_players",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789700400000,
+      "tag": "0007_play_client",
+      "breakpoints": true
     }
   ]
 }

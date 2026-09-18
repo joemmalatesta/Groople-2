@@ -1,59 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
-	// Accept letter as a prop from parent component
 	export let letter: string;
 	export let inTopBar: boolean = false;
-	export let onTimerEnd: (() => void) | undefined = undefined;
+	export let timer: number;
+	export let milliseconds: number;
 
-	let timer = 100;
-	let milliseconds = 0;
-	let timerInterval: NodeJS.Timeout;
 	let isHovered = false;
-
-	export function stopTimer() {
-		if (timerInterval) {
-			clearInterval(timerInterval);
-		}
-	}
-
-	export function getTimeRemainingMs(): number {
-		return Math.max(0, timer * 1000 + milliseconds);
-	}
-
-	// Start the timer countdown
-	function startTimer() {
-		timerInterval = setInterval(() => {
-			if (timer > 0 || milliseconds > 0) {
-				milliseconds -= 20;
-				if (milliseconds < 0) {
-					if (timer > 0) {
-						milliseconds = 980;
-						timer--;
-					} else {
-						milliseconds = 0;
-						clearInterval(timerInterval);
-						// Call the callback when timer reaches zero
-						if (onTimerEnd) {
-							onTimerEnd();
-						}
-					}
-				}
-			} else {
-				clearInterval(timerInterval);
-			}
-		}, 20);
-	}
-
-	onMount(() => {
-		startTimer();
-
-		return () => {
-			if (timerInterval) {
-				clearInterval(timerInterval);
-			}
-		};
-	});
 </script>
 
 <div class="flex w-full justify-around gap-7 pt-4 pb-2">
