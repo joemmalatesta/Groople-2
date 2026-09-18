@@ -10,8 +10,10 @@ import {
 	unique,
 	smallint,
 	real,
+	jsonb,
 	primaryKey
 } from 'drizzle-orm/pg-core';
+import type { PlayClient } from '../../playClient';
 
 export const categories = pgTable('categories', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -30,6 +32,24 @@ export const dailyPuzzles = pgTable(
 	},
 	(table) => ({
 		letterIdx: index('daily_puzzles_letter_idx').on(table.letter)
+	})
+);
+
+export const players = pgTable(
+	'players',
+	{
+		id: uuid('id').primaryKey(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+		timezone: text('timezone'),
+		lastPlayedOn: date('last_played_on'),
+		streak: integer('streak').notNull().default(0),
+		maxStreak: integer('max_streak').notNull().default(0),
+		name: text('name'),
+		metadata: text('metadata')
+	},
+	(table) => ({
+		lastPlayedIdx: index('players_last_played_on_idx').on(table.lastPlayedOn)
 	})
 );
 
@@ -57,12 +77,16 @@ export const plays = pgTable(
 		date: date('date')
 			.notNull()
 			.references(() => dailyPuzzles.date),
-		playerId: uuid('player_id').notNull(),
+		playerId: uuid('player_id')
+			.notNull()
+			.references(() => players.id),
 		score: integer('score').notNull(),
 		timeRemainingMs: integer('time_remaining_ms').notNull(),
-		submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull()
+		submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+		client: jsonb('client').$type<PlayClient | null>()
 	},
 	(table) => ({
+		playerDateUnique: unique('plays_player_date_unique').on(table.playerId, table.date),
 		playerSubmittedIdx: index('plays_player_submitted_idx').on(table.playerId, table.submittedAt),
 		dateIdx: index('plays_date_idx').on(table.date)
 	})
@@ -81,12 +105,15 @@ export const answers = pgTable(
 			.references(() => categories.id),
 		answer: text('answer').notNull(),
 		correct: boolean('correct').notNull(),
-		noul: real('noul'),
+		yesProbability: real('yes_probability'),
 		rebuttaled: boolean('rebuttaled').notNull().default(false)
 	},
 	(table) => ({
 		playPositionUnique: unique('answers_play_position_unique').on(table.playId, table.position),
 		categoryIdx: index('answers_category_id_idx').on(table.categoryId),
-		categoryNoulIdx: index('answers_category_noul_idx').on(table.categoryId, table.noul)
+		categoryYesProbabilityIdx: index('answers_category_yes_probability_idx').on(
+			table.categoryId,
+			table.yesProbability
+		)
 	})
 );

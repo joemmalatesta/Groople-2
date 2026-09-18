@@ -6,6 +6,7 @@
 @theme {
 	--color-light: #f2f2f2;
 	--color-dark: #1a1a1a;
+	--font-inter: 'Inter', sans-serif;
 }
 
 :root {

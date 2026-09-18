@@ -5,11 +5,11 @@ import { startsWithRequiredLetter } from './letterCheck';
 export { startsWithRequiredLetter };
 
 /** Probability of yes at or above this counts as a correct answer. Tune against real games. */
-export const VALID_NOUL_THRESHOLD = 0.6;
+export const VALID_YES_PROBABILITY_THRESHOLD = 0.6;
 
 export type GradeResult = {
 	correct: boolean[];
-	nouls: Array<number | null>;
+	yesProbabilities: Array<number | null>;
 };
 
 function getClient(fetchFn?: Fetch): TypeSafeClient {
@@ -42,7 +42,7 @@ export async function gradeAnswers(params: {
 }): Promise<GradeResult> {
 	const count = params.categories.length;
 	const correct = Array.from({ length: count }, () => false);
-	const nouls: Array<number | null> = Array.from({ length: count }, () => null);
+	const yesProbabilities: Array<number | null> = Array.from({ length: count }, () => null);
 	const toJudge: AnswerSlot[] = [];
 
 	for (let i = 0; i < count; i += 1) {
@@ -55,7 +55,7 @@ export async function gradeAnswers(params: {
 	}
 
 	if (toJudge.length === 0) {
-		return { correct, nouls };
+		return { correct, yesProbabilities };
 	}
 
 	const answersState: Record<string, { category: string; response: string }> = {};
@@ -100,9 +100,9 @@ export async function gradeAnswers(params: {
 		if (judgment?.type !== 'noul') {
 			continue;
 		}
-		nouls[slot.index] = judgment.noul;
-		correct[slot.index] = judgment.noul >= VALID_NOUL_THRESHOLD;
+		yesProbabilities[slot.index] = judgment.noul;
+		correct[slot.index] = judgment.noul >= VALID_YES_PROBABILITY_THRESHOLD;
 	}
 
-	return { correct, nouls };
+	return { correct, yesProbabilities };
 }
