@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "env -u DATABASE_URL vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -15,11 +15,12 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run",
 		"db:start": "docker compose up",
-		"db:push": "drizzle-kit push",
+		"db:push": "env -u DATABASE_URL drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "DATABASE_URL=postgresql://postgres:mysecretpassword@localhost:5432/postgres drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio",
-		"db:seed": "DATABASE_URL=postgresql://postgres:mysecretpassword@localhost:5432/postgres tsx src/lib/server/db/seed.ts",
+		"db:migrate": "env -u DATABASE_URL drizzle-kit migrate",
+		"db:studio": "env -u DATABASE_URL drizzle-kit studio",
+		"db:seed": "env -u DATABASE_URL tsx src/lib/server/db/seed.ts",
+		"db:category": "env -u DATABASE_URL tsx src/lib/server/db/addCategory.ts",
 		"db:setup": "pnpm run db:start && sleep 5 && pnpm run db:migrate"
 	},
 	"devDependencies": {
@@ -49,11 +50,9 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
-		"@ai-sdk/openai": "^2.0.42",
-		"@ai-sdk/svelte": "^3.0.60",
 		"@supabase/ssr": "^0.7.0",
 		"@supabase/supabase-js": "^2.58.0",
-		"ai": "^5.0.60",
+		"@typesafe-ai/sdk": "^0.6.0",
 		"phosphor-svelte": "^3.0.1",
 		"postgres": "^3.4.7",
 		"zod": "^4.1.11"

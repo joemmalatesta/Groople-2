@@ -7,17 +7,46 @@ import {
 	index,
 	uuid,
 	date,
-	unique
+	unique,
+	smallint,
+	real,
+	primaryKey
 } from 'drizzle-orm/pg-core';
 
-export const categories = pgTable(
-	'categories',
+export const categories = pgTable('categories', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	name: text('name').notNull().unique(),
+	archived: boolean('archived').notNull().default(false),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+});
+
+export const dailyPuzzles = pgTable(
+	'daily_puzzles',
 	{
-		id: uuid('id').primaryKey().defaultRandom(),
-		category: text('category').notNull()
+		date: date('date').primaryKey(),
+		letter: text('letter').notNull(),
+		status: text('status').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 	},
 	(table) => ({
-		idIdx: index('categories_id_idx').on(table.id)
+		letterIdx: index('daily_puzzles_letter_idx').on(table.letter)
+	})
+);
+
+export const dailyPuzzleSlots = pgTable(
+	'daily_puzzle_slots',
+	{
+		date: date('date')
+			.notNull()
+			.references(() => dailyPuzzles.date),
+		position: smallint('position').notNull(),
+		categoryId: uuid('category_id')
+			.notNull()
+			.references(() => categories.id)
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.date, table.position] }),
+		uniqueCategory: unique('daily_puzzle_slots_date_category_unique').on(table.date, table.categoryId)
 	})
 );
 
@@ -25,12 +54,17 @@ export const plays = pgTable(
 	'plays',
 	{
 		id: uuid('id').primaryKey().defaultRandom(),
-		timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
-		score: integer('score').notNull()
+		date: date('date')
+			.notNull()
+			.references(() => dailyPuzzles.date),
+		playerId: uuid('player_id').notNull(),
+		score: integer('score').notNull(),
+		timeRemainingMs: integer('time_remaining_ms').notNull(),
+		submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull()
 	},
 	(table) => ({
-		idIdx: index('plays_id_idx').on(table.id),
-		timestampIdx: index('plays_timestamp_idx').on(table.timestamp)
+		playerSubmittedIdx: index('plays_player_submitted_idx').on(table.playerId, table.submittedAt),
+		dateIdx: index('plays_date_idx').on(table.date)
 	})
 );
 
@@ -41,46 +75,18 @@ export const answers = pgTable(
 		playId: uuid('play_id')
 			.notNull()
 			.references(() => plays.id),
+		position: smallint('position').notNull(),
 		categoryId: uuid('category_id')
 			.notNull()
 			.references(() => categories.id),
 		answer: text('answer').notNull(),
-		rebuttaled: boolean('rebuttaled').default(false).notNull(),
-		correct: boolean('correct').notNull()
+		correct: boolean('correct').notNull(),
+		noul: real('noul'),
+		rebuttaled: boolean('rebuttaled').notNull().default(false)
 	},
 	(table) => ({
-		idIdx: index('answers_id_idx').on(table.id),
-		playIdIdx: index('answers_play_id_idx').on(table.playId),
-		categoryIdIdx: index('answers_category_id_idx').on(table.categoryId)
-	})
-);
-
-export const dailyCategories = pgTable(
-	'daily_categories',
-	{
-		id: uuid('id').primaryKey().defaultRandom(),
-		date: date('date').notNull(),
-		categoryId: uuid('category_id')
-			.notNull()
-			.references(() => categories.id),
-		order: integer('order').notNull() // 1-12
-	},
-	(table) => ({
-		idIdx: index('daily_categories_id_idx').on(table.id),
-		dateIdx: index('daily_categories_date_idx').on(table.date),
-		uniqueDateOrder: unique('daily_categories_date_order_unique').on(table.date, table.order)
-	})
-);
-
-export const dailyLetters = pgTable(
-	'daily_letters',
-	{
-		id: uuid('id').primaryKey().defaultRandom(),
-		date: date('date').notNull().unique(),
-		letter: text('letter').notNull()
-	},
-	(table) => ({
-		idIdx: index('daily_letters_id_idx').on(table.id),
-		dateIdx: index('daily_letters_date_idx').on(table.date)
+		playPositionUnique: unique('answers_play_position_unique').on(table.playId, table.position),
+		categoryIdx: index('answers_category_id_idx').on(table.categoryId),
+		categoryNoulIdx: index('answers_category_noul_idx').on(table.categoryId, table.noul)
 	})
 );

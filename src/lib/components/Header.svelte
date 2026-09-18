@@ -4,11 +4,22 @@
 	// Accept letter as a prop from parent component
 	export let letter: string;
 	export let inTopBar: boolean = false;
+	export let onTimerEnd: (() => void) | undefined = undefined;
 
 	let timer = 100;
 	let milliseconds = 0;
 	let timerInterval: NodeJS.Timeout;
 	let isHovered = false;
+
+	export function stopTimer() {
+		if (timerInterval) {
+			clearInterval(timerInterval);
+		}
+	}
+
+	export function getTimeRemainingMs(): number {
+		return Math.max(0, timer * 1000 + milliseconds);
+	}
 
 	// Start the timer countdown
 	function startTimer() {
@@ -22,6 +33,10 @@
 					} else {
 						milliseconds = 0;
 						clearInterval(timerInterval);
+						// Call the callback when timer reaches zero
+						if (onTimerEnd) {
+							onTimerEnd();
+						}
 					}
 				}
 			} else {
@@ -44,14 +59,14 @@
 <div class="flex w-full justify-around gap-7 pt-4 pb-2">
 	<div class="flex flex-col items-center">
 		<h3
-			class="text-dark dark:text-light m-0 {inTopBar
+			class="m-0 text-dark dark:text-light {inTopBar
 				? 'hidden'
 				: 'mb-2 text-base md:mb-4 md:text-xl'} font-semibold underline"
 		>
 			Letter
 		</h3>
 		<div
-			class="text-dark dark:text-light m-0 {inTopBar
+			class="m-0 text-dark dark:text-light {inTopBar
 				? 'text-2xl'
 				: 'text-5xl md:text-6xl'} font-bold"
 		>
@@ -61,14 +76,14 @@
 
 	<div class="flex w-16 flex-col items-center md:w-32">
 		<h3
-			class="text-dark dark:text-light m-0 {inTopBar
+			class="m-0 text-dark dark:text-light {inTopBar
 				? 'hidden'
 				: 'mb-2 text-base md:mb-4 md:text-xl'} font-semibold underline"
 		>
 			Time
 		</h3>
 		<div
-			class="text-dark dark:text-light m-0 {inTopBar
+			class="m-0 text-dark dark:text-light {inTopBar
 				? 'text-2xl'
 				: 'text-5xl md:text-6xl'} relative cursor-pointer font-bold tabular-nums"
 			role="button"
