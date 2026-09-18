@@ -49,9 +49,20 @@ export function histogramFromCounts(
 ): ScoreHistogram {
 	const histogram = emptyHistogram();
 	for (const row of rows) {
-		if (row.score >= 0 && row.score <= 12) {
-			histogram[row.score] = row.count;
+		const score = Number(row.score);
+		const count = Number(row.count);
+		if (Number.isInteger(score) && score >= 0 && score <= 12 && count > 0) {
+			histogram[score] = (histogram[score] ?? 0) + count;
 		}
 	}
 	return histogram;
+}
+
+export function includeScore(histogram: ScoreHistogram, score: number): ScoreHistogram {
+	const next = histogram.length === 13 ? [...histogram] : emptyHistogram();
+	const index = Math.min(12, Math.max(0, Math.round(score)));
+	if ((next[index] ?? 0) <= 0) {
+		next[index] = 1;
+	}
+	return next;
 }

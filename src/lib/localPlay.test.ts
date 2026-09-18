@@ -114,6 +114,37 @@ describe('recordLocalPlay', () => {
 		expect(readTodaysLocalPlay()?.answers[0]).toBe('Juice');
 	});
 
+	it('adds today to an existing histogram when that bucket is empty', () => {
+		localStorage.setItem(
+			'scores',
+			JSON.stringify({
+				'0': 0,
+				'1': 0,
+				'2': 0,
+				'3': 0,
+				'4': 1,
+				'5': 0,
+				'6': 0,
+				'7': 0,
+				'8': 0,
+				'9': 0,
+				'10': 0,
+				'11': 0,
+				'12': 0
+			})
+		);
+
+		const categories = Array.from({ length: 12 }, (_, index) => `Cat ${index + 1}`);
+		syncLocalPlayBoard({
+			categories,
+			answers: categories.map((_, index) => (index < 3 ? 'Juice' : '')),
+			validationResults: categories.map((_, index) => index < 3)
+		});
+
+		expect(JSON.parse(String(localStorage.getItem('scores')))['3']).toBe(1);
+		expect(JSON.parse(String(localStorage.getItem('scores')))['4']).toBe(1);
+	});
+
 	it('reports history only after a play is stored', () => {
 		expect(hasLocalHistory()).toBe(false);
 		expect(hasPlayedToday()).toBe(false);

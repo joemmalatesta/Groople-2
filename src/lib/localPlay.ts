@@ -163,17 +163,20 @@ export function syncLocalPlayBoard(params: {
 }): void {
 	writeBoard(params);
 
+	const yesCount = params.validationResults.filter(Boolean).length;
 	if (localStorage.getItem(SCORES_KEY)) {
+		const scores = readScores();
+		const bucket = String(yesCount);
+		if ((scores[bucket] ?? 0) <= 0) {
+			scores[bucket] = 1;
+			localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+		}
 		if (!localStorage.getItem(YES_COUNT_KEY)) {
-			localStorage.setItem(
-				YES_COUNT_KEY,
-				String(params.validationResults.filter(Boolean).length)
-			);
+			localStorage.setItem(YES_COUNT_KEY, String(yesCount));
 		}
 		return;
 	}
 
-	const yesCount = params.validationResults.filter(Boolean).length;
 	const scores = { ...EMPTY_SCORES };
 	scores[String(yesCount)] = 1;
 	localStorage.setItem(YES_COUNT_KEY, String(yesCount));

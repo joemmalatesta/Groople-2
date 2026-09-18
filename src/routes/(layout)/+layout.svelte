@@ -33,10 +33,10 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col bg-light text-dark dark:bg-dark dark:text-light">
-	<div class="flex flex-1 flex-col pb-14">
+	<div class="flex flex-1 flex-col">
 		{@render children?.()}
 	</div>
-	<footer class="fixed inset-x-0 bottom-0 z-20 bg-light pb-3 pt-2 dark:bg-dark">
+	<footer class="mt-auto pb-6 pt-2">
 		<h4 class="font-inter! text-center text-sm">
 			Created by
 			<a
