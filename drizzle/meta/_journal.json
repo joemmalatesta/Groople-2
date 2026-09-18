@@ -22,6 +22,13 @@
       "when": 1760771545286,
       "tag": "0002_romantic_rachel_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789687943401,
+      "tag": "0003_daily_puzzles",
+      "breakpoints": true
     }
   ]
 }
