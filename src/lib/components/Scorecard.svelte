@@ -9,7 +9,7 @@
 	import Histogram from '$lib/components/Histogram.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import type { PlayerProfile } from '$lib/playerProfile';
-	import { histogramTotal, type ScoreboardStats } from '$lib/scoreboard';
+	import { emptyHistogram, histogramTotal, includeScore, type ScoreboardStats } from '$lib/scoreboard';
 	import { readPersonalHistogram } from '$lib/localPlay';
 	import { nameInitials, writePlayerName } from '$lib/playerName';
 	import { browser } from '$app/environment';
@@ -20,10 +20,11 @@
 	export let player: PlayerProfile | null;
 	export let scoreboard: ScoreboardStats | null;
 	export let timezone: string;
+	export let dateLabel = '';
 	export let onClose: () => void = () => {};
 	export let onSave: (player: PlayerProfile) => void = () => {};
 
-	let scope: 'you' | 'world' = 'you';
+	let scope: 'you' | 'world' = 'world';
 	let nameValue = player?.name ?? '';
 	let errorMessage = '';
 	let formElement: HTMLFormElement;
@@ -32,10 +33,12 @@
 		nameValue = player.name ?? '';
 	}
 
-	$: localPersonal = browser ? readPersonalHistogram() : [];
-	$: personal =
-		histogramTotal(localPersonal) > 0 ? localPersonal : (scoreboard?.personal ?? []);
-	$: world = scoreboard?.world ?? [];
+	$: localPersonal = browser ? readPersonalHistogram() : emptyHistogram();
+	$: personal = includeScore(
+		scoreboard && histogramTotal(scoreboard.personal) > 0 ? scoreboard.personal : localPersonal,
+		score
+	);
+	$: world = includeScore(scoreboard?.world ?? emptyHistogram(), score);
 	$: activeCounts = scope === 'you' ? personal : world;
 	$: streak = player?.streak ?? 0;
 	$: worldCount = scoreboard?.worldCount ?? 0;
@@ -138,7 +141,7 @@
 						<Tooltip text="You" align="end" side="bottom">
 							<button
 								type="button"
-								class="flex items-center gap-1 rounded-l-full px-2.5 py-1 {scope === 'you'
+								class="flex cursor-pointer items-center gap-1 rounded-l-full px-2.5 py-1 {scope === 'you'
 									? 'bg-dark text-light dark:bg-light dark:text-dark'
 									: 'text-gray-400'}"
 								aria-label="You"
@@ -150,7 +153,7 @@
 						<Tooltip text="World" align="end" side="bottom">
 							<button
 								type="button"
-								class="flex items-center gap-1 rounded-r-full px-2.5 py-1 {scope === 'world'
+								class="flex cursor-pointer items-center gap-1 rounded-r-full px-2.5 py-1 {scope === 'world'
 									? 'bg-dark text-light dark:bg-light dark:text-dark'
 									: 'text-gray-400'}"
 								aria-label="World"
@@ -162,7 +165,7 @@
 					</div>
 					<button
 						type="button"
-						class="rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+						class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
 						aria-label="Close"
 						on:click={close}
 					>
@@ -199,7 +202,13 @@
 					<Histogram counts={activeCounts} highlight={score} variant="columns" />
 				</div>
 
-				<p class="mt-6 text-center text-sm text-gray-400">Play again tomorrow</p>
+				<p class="mt-6 text-center text-sm text-gray-400">
+					{#if dateLabel}
+						{dateLabel}<span
+							class="mx-2 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle"
+						></span>
+					{/if}Play again tomorrow
+				</p>
 
 				{#if errorMessage}
 					<p class="mt-2 text-center text-sm text-red-600 dark:text-red-400">{errorMessage}</p>

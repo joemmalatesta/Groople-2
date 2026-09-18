@@ -11,6 +11,7 @@
 	import { hasLocalHistory, recordLocalPlay } from '$lib/localPlay';
 	import { readPlayerName, writePlayerName } from '$lib/playerName';
 	import { collectPlayClient } from '$lib/playClient';
+	import { formatPuzzleDate } from '$lib/puzzleDate';
 	import Scorecard from '$lib/components/Scorecard.svelte';
 	import Landing from '$lib/components/Landing.svelte';
 	import Tutorial from '$lib/components/Tutorial.svelte';
@@ -46,6 +47,7 @@
 	$: categories = data.categories;
 	$: letter = data.letter;
 	$: puzzleReady = Boolean(playerId) && letter.length > 0 && categories.length === 12;
+	$: dateLabel = data.date ? formatPuzzleDate(data.date) : '';
 	$: timer = Math.floor(remainingMs / 1000);
 	$: milliseconds = remainingMs % 1000;
 	$: if (!answersSubmitted && answerArray.length !== categories.length) {
@@ -220,15 +222,17 @@
 	}
 </script>
 
-<main class="mx-auto max-w-3xl">
+<main class="mx-auto flex w-full max-w-3xl flex-1 flex-col">
 	<div
 		class="sticky top-0 z-10 flex items-center justify-between bg-light/60 px-4 backdrop-blur-sm dark:bg-dark/60"
 	>
-		{#if $theme === 'dark'}
-			<img src={faviconLight} alt="Groople Logo" class="h-8 w-8" />
-		{:else}
-			<img src={favicon} alt="Groople Logo" class="h-8 w-8" />
-		{/if}
+		<a href="/" data-sveltekit-reload aria-label="Groople" class="cursor-pointer">
+			{#if $theme === 'dark'}
+				<img src={faviconLight} alt="Groople Logo" class="h-8 w-8" />
+			{:else}
+				<img src={favicon} alt="Groople Logo" class="h-8 w-8" />
+			{/if}
+		</a>
 		<div
 			class="transition-all duration-300 ease-out"
 			style="opacity: {scrollPosition > 100 ? 1 : 0}; transform: scale({scrollPosition > 100
@@ -253,11 +257,12 @@
 		</div>
 	{/if}
 
-	<div class="relative flex w-full flex-col items-center justify-center px-4">
+	<div class="relative flex w-full flex-1 flex-col items-center px-4">
 		{#if screen === 'landing'}
 			<Landing
 				name={playerName}
 				{firstVisit}
+				{dateLabel}
 				onStart={enterPuzzle}
 				onTutorial={() => {
 					screen = 'tutorial';
@@ -340,6 +345,7 @@
 			player={playerProfile}
 			{scoreboard}
 			timezone={browserTimeZone()}
+			{dateLabel}
 			onClose={() => {
 				scoresModalOpen = false;
 			}}

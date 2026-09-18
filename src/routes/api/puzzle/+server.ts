@@ -27,6 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			: null;
 
 	return json({
+		date: puzzle.date,
 		categories: puzzle.slots.map((slot) => slot.category),
 		letter: puzzle.letter || LETTERS[0],
 		play,

@@ -32,10 +32,12 @@
 	</script>
 </svelte:head>
 
-<div class="min-h-screen bg-light text-dark dark:bg-dark dark:text-light">
-	{@render children?.()}
-	<footer class="mb-3 flex justify-center">
-		<h4 class="font-inter! text-sm">
+<div class="flex min-h-screen flex-col bg-light text-dark dark:bg-dark dark:text-light">
+	<div class="flex flex-1 flex-col">
+		{@render children?.()}
+	</div>
+	<footer class="mt-auto pb-6 pt-2">
+		<h4 class="font-inter! text-center text-sm">
 			Created by
 			<a
 				href="https://joemmalatesta.com"
