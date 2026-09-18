@@ -190,7 +190,7 @@
 						<p
 							class="mt-1 flex items-center justify-center gap-1 text-xs uppercase tracking-widest text-gray-400"
 						>
-							<svelte:component this={Globe} size={12} weight="bold" /> %ile
+							<svelte:component this={Globe} size={12} weight="bold" /> Percentile
 						</p>
 					</div>
 				</div>
