@@ -12,7 +12,7 @@
 
 <button
 	onclick={toggleTheme}
-	class="bg-light/50 hover:bg-light/70 dark:bg-dark/50 dark:hover:bg-dark/70 rounded-lg p-2 transition-colors duration-200"
+	class="cursor-pointer rounded-lg bg-light/50 p-2 transition-colors duration-200 hover:bg-light/70 dark:bg-dark/50 dark:hover:bg-dark/70"
 	aria-label="Toggle theme"
 	title="Toggle theme"
 >

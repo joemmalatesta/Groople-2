@@ -9,6 +9,7 @@ import type { ScoreboardStats } from '$lib/scoreboard';
 export const ssr = false;
 
 type PuzzleResponse = {
+	date: string;
 	categories: string[];
 	letter: string;
 	play: SavedPlay | null;
@@ -19,6 +20,7 @@ type PuzzleResponse = {
 export const load: PageLoad = async ({ fetch }) => {
 	if (!browser) {
 		return {
+			date: '',
 			categories: [] as string[],
 			letter: '',
 			play: null as SavedPlay | null,

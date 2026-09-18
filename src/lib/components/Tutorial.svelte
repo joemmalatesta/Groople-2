@@ -95,7 +95,7 @@
 <div class="flex w-full flex-col items-center">
 	<Header {letter} {timer} {milliseconds} />
 	<p class="mt-2 max-w-md text-center text-sm text-gray-500 dark:text-gray-400">
-		Fill in answers that start with {letter}. One's already done — you've got 25 seconds.
+		Fill in answers that start with {letter}. One's already done for you.
 	</p>
 
 	<form
@@ -118,9 +118,6 @@
 					locked={index === 0 && !submitted}
 					reveal={reveal}
 				/>
-				{#if index === 0 && !submitted}
-					<p class="mb-2 pl-6 text-xs text-gray-400">This one's filled in for you.</p>
-				{/if}
 			</div>
 		{/each}
 
@@ -133,20 +130,20 @@
 			</button>
 			<button
 				type="button"
-				class="mb-8 w-full text-sm text-gray-400 hover:text-dark dark:hover:text-light"
+				class="mb-8 w-full cursor-pointer text-sm text-gray-400 hover:text-dark dark:hover:text-light"
 				on:click={onBack}
 			>
 				Back
 			</button>
 		{:else}
 			<div class="mb-8 mt-6 text-center">
-				<p class="text-3xl font-semibold text-dark dark:text-light">{score}/3</p>
+				<p class="text-3xl font-semibold text-dark dark:text-light">You scored {score}</p>
 				<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 					That's the idea. The daily puzzle has 12 categories and 100 seconds.
 				</p>
 				<button
 					type="button"
-					class="mt-6 w-full rounded-md bg-dark p-3 text-light dark:bg-light dark:text-dark"
+					class="mt-6 w-full cursor-pointer rounded-md bg-dark p-3 text-light dark:bg-light dark:text-dark"
 					on:click={onComplete}
 				>
 					Start Daily Puzzle

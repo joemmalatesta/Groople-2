@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parsePlayerId } from '$lib/playerId';
+import { formatPuzzleDate } from '$lib/puzzleDate';
 import { localDateInTimezone } from './localDate';
 
 describe('localDateInTimezone', () => {
@@ -11,6 +12,12 @@ describe('localDateInTimezone', () => {
 	it('rejects invalid timezones', () => {
 		expect(() => localDateInTimezone('Not/AZone')).toThrow('Invalid timezone');
 		expect(() => localDateInTimezone('')).toThrow('Invalid timezone');
+	});
+});
+
+describe('formatPuzzleDate', () => {
+	it('formats an ISO date in UTC so the puzzle day does not shift', () => {
+		expect(formatPuzzleDate('2026-09-17')).toBe('Sep 17, 2026');
 	});
 });
 
