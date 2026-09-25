@@ -16,12 +16,12 @@
 	<div class="aspect-[1.91/1] w-full">
 		<div class="flex h-full flex-col justify-between bg-light p-6 text-dark">
 			<img src={favicon} alt="" class="h-10 w-10" />
-			<div>
-				<div class="flex items-end justify-between gap-6">
+			<div class="flex items-end justify-between gap-6">
+				<div>
 					<h2 class="m-0 text-5xl leading-none">Groople</h2>
-					<h2 class="m-0 text-8xl leading-none md:text-9xl">{sampleResult.letter}</h2>
+					<p class="mt-3 max-w-xs text-sm text-gray-500">12 categories. 100 seconds. One letter.</p>
 				</div>
-				<p class="mt-3 max-w-xs text-sm text-gray-500">12 categories. 100 seconds. One letter.</p>
+				<h2 class="m-0 text-8xl leading-none md:text-9xl">{sampleResult.letter}</h2>
 			</div>
 		</div>
 	</div>
