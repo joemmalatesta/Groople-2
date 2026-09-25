@@ -5,7 +5,7 @@
 	import User from 'phosphor-svelte/lib/User';
 	import Globe from 'phosphor-svelte/lib/Globe';
 	import Fire from 'phosphor-svelte/lib/Fire';
-	import LinkSimple from 'phosphor-svelte/lib/LinkSimple';
+	import LinkPinch from '$lib/components/LinkPinch.svelte';
 	import X from 'phosphor-svelte/lib/X';
 	import Histogram from '$lib/components/Histogram.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
@@ -32,6 +32,7 @@
 	let nameValue = player?.name ?? '';
 	let errorMessage = '';
 	let copied = false;
+	let shareIcon: LinkPinch;
 	let formElement: HTMLFormElement;
 
 	$: if (player) {
@@ -53,6 +54,7 @@
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = true;
+			shareIcon?.play();
 			window.setTimeout(() => {
 				copied = false;
 			}, 1600);
@@ -209,7 +211,7 @@
 						on:click={copyResult}
 					>
 						<span class="flex h-12 items-center justify-center">
-							<svelte:component this={LinkSimple} size={36} weight="bold" />
+							<LinkPinch bind:this={shareIcon} />
 						</span>
 						<p class="mt-1 text-xs uppercase tracking-widest text-gray-400">
 							{copied ? 'Copied' : 'Share'}

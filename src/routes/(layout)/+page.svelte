@@ -303,7 +303,7 @@
 					<input type="hidden" name="letter" value={letter} />
 					<input type="hidden" name="player_id" value={playerId} />
 					{#if isValidating}
-						<PuzzleSkeleton scoring />
+						<PuzzleSkeleton scoring answers={answerArray} />
 					{:else}
 						{#each categories as category, index}
 							<div class="w-full">
