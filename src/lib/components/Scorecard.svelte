@@ -57,7 +57,7 @@
 			shareIcon?.play();
 			window.setTimeout(() => {
 				copied = false;
-			}, 1600);
+			}, 1700);
 		} catch {
 			errorMessage = 'Could not copy';
 		}
