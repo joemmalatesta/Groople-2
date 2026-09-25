@@ -29,6 +29,10 @@
 		return `${Math.round((count / max) * 100)}%`;
 	}
 
+	function timesLabel(count: number): string {
+		return `Scored ${count} ${count === 1 ? 'time' : 'times'}`;
+	}
+
 </script>
 
 {#if variant === 'columns' || variant === 'overlay'}
@@ -66,7 +70,7 @@
 							role="tooltip"
 							class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max -translate-x-1/2 rounded-md bg-dark px-2 py-1 text-center text-xs text-light opacity-0 shadow-lg transition-opacity delay-0 duration-0 group-hover:opacity-100 group-hover:delay-500"
 						>
-							{count}
+							{timesLabel(count)}
 						</span>
 					</div>
 				{/each}
