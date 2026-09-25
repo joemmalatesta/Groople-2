@@ -5,19 +5,7 @@
 	import LinkCards from '$lib/components/preview/LinkCards.svelte';
 	import { sampleResult, shareText } from '$lib/preview/shareCopy';
 	import favicon from '$lib/assets/favicon.svg';
-	import Clipboard from 'phosphor-svelte/lib/Clipboard';
-	import Export from 'phosphor-svelte/lib/Export';
 	import LinkSimple from 'phosphor-svelte/lib/LinkSimple';
-	import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
-	import Copy from 'phosphor-svelte/lib/Copy';
-
-	const marks = [
-		{ icon: Clipboard, title: 'Clipboard', note: 'The plain copy mark. Closest to “this copies the result.”' },
-		{ icon: Export, title: 'Export', note: 'An arrow leaving a tray. The share icon people already know from a phone.' },
-		{ icon: LinkSimple, title: 'Link', note: 'Says the thing you’re handing over is the Groople link.' },
-		{ icon: ShareNetwork, title: 'Share', note: 'The connected-nodes mark. Reads as sending it to someone else.' },
-		{ icon: Copy, title: 'Copy', note: 'Two sheets. The usual copy control, quieter than a clipboard.' }
-	];
 </script>
 
 <svelte:head>
@@ -40,7 +28,7 @@
 
 	<h1 class="mt-8 text-4xl text-dark dark:text-light">Picks</h1>
 	<p class="mt-3 max-w-2xl text-base text-gray-500 dark:text-gray-400">
-		Row skeleton is the loading state. The share copy is still the filled and open dots. The third tile is only the button, shown here with five icons. The link card is the light editorial lockup with today’s letter on the right.
+		Row skeleton is the loading state. The share tile uses the link icon and copies the filled and open dots. The link card keeps the light lockup, with today’s letter on the same bottom line as Groople.
 	</p>
 
 	<section id="loading" class="mt-14 scroll-mt-20">
@@ -63,19 +51,13 @@
 	<section id="share" class="mt-20 scroll-mt-20">
 		<h2 class="text-3xl text-dark dark:text-light">Share button</h2>
 		<p class="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-			Same tile, same copied result. The mark is the only difference. Sample round: letter {sampleResult.letter}, {sampleResult.correct.filter(Boolean).length} right.
+			The link icon. It copies the dot row. Sample round: letter {sampleResult.letter}, {sampleResult.correct.filter(Boolean).length} right.
 		</p>
-		<pre class="mt-4 max-w-md overflow-x-auto rounded-2xl bg-neutral-200 p-5 text-sm whitespace-pre-wrap text-dark dark:bg-neutral-800 dark:text-light">{shareText('dots', sampleResult)}</pre>
-		<div class="mt-8 grid gap-8 md:grid-cols-2">
-			{#each marks as option, index}
-				<article>
-					<h3 class="text-2xl text-dark dark:text-light">{index + 1}. {option.title}</h3>
-					<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{option.note}</p>
-					<div class="mt-4 max-w-md">
-						<ShareBoards icon={option.icon} />
-					</div>
-				</article>
-			{/each}
+		<div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
+			<div class="max-w-md">
+				<ShareBoards icon={LinkSimple} />
+			</div>
+			<pre class="overflow-x-auto rounded-2xl bg-neutral-200 p-5 text-sm whitespace-pre-wrap text-dark dark:bg-neutral-800 dark:text-light">{shareText('dots', sampleResult)}</pre>
 		</div>
 	</section>
 
