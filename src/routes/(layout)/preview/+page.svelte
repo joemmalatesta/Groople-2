@@ -5,13 +5,18 @@
 	import LinkCards from '$lib/components/preview/LinkCards.svelte';
 	import { sampleResult, shareText } from '$lib/preview/shareCopy';
 	import favicon from '$lib/assets/favicon.svg';
+	import Clipboard from 'phosphor-svelte/lib/Clipboard';
+	import Export from 'phosphor-svelte/lib/Export';
+	import LinkSimple from 'phosphor-svelte/lib/LinkSimple';
+	import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
+	import Copy from 'phosphor-svelte/lib/Copy';
 
 	const marks = [
-		{ emoji: '📋', title: 'Clipboard', note: 'The plain “this copies” mark. Closest to a copy button.' },
-		{ emoji: '📤', title: 'Outbox', note: 'The tray-and-arrow people already tap to share on a phone.' },
-		{ emoji: '🔗', title: 'Link', note: 'Says the thing you’re handing over is the Groople link.' },
-		{ emoji: '↗️', title: 'Arrow', note: 'The same gesture as a system share button, without a box around it.' },
-		{ emoji: '📎', title: 'Paperclip', note: 'Reads as attaching the result to a post.' }
+		{ icon: Clipboard, title: 'Clipboard', note: 'The plain copy mark. Closest to “this copies the result.”' },
+		{ icon: Export, title: 'Export', note: 'An arrow leaving a tray. The share icon people already know from a phone.' },
+		{ icon: LinkSimple, title: 'Link', note: 'Says the thing you’re handing over is the Groople link.' },
+		{ icon: ShareNetwork, title: 'Share', note: 'The connected-nodes mark. Reads as sending it to someone else.' },
+		{ icon: Copy, title: 'Copy', note: 'Two sheets. The usual copy control, quieter than a clipboard.' }
 	];
 </script>
 
@@ -35,7 +40,7 @@
 
 	<h1 class="mt-8 text-4xl text-dark dark:text-light">Picks</h1>
 	<p class="mt-3 max-w-2xl text-base text-gray-500 dark:text-gray-400">
-		Row skeleton is the loading state. The share copy is still the filled and open dots. The third tile is only the button, shown here with five marks. The link card is the light editorial lockup with today’s letter on the right.
+		Row skeleton is the loading state. The share copy is still the filled and open dots. The third tile is only the button, shown here with five icons. The link card is the light editorial lockup with today’s letter on the right.
 	</p>
 
 	<section id="loading" class="mt-14 scroll-mt-20">
@@ -64,10 +69,10 @@
 		<div class="mt-8 grid gap-8 md:grid-cols-2">
 			{#each marks as option, index}
 				<article>
-					<h3 class="text-2xl text-dark dark:text-light">{index + 1}. {option.emoji} {option.title}</h3>
+					<h3 class="text-2xl text-dark dark:text-light">{index + 1}. {option.title}</h3>
 					<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{option.note}</p>
 					<div class="mt-4 max-w-md">
-						<ShareBoards mark={option.emoji} />
+						<ShareBoards icon={option.icon} />
 					</div>
 				</article>
 			{/each}

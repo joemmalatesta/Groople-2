@@ -1,9 +1,10 @@
 <script lang="ts">
+	import type { ComponentType } from 'svelte';
 	import Fire from 'phosphor-svelte/lib/Fire';
 	import Histogram from '$lib/components/Histogram.svelte';
 	import { sampleResult, scoreOf } from '$lib/preview/shareCopy';
 
-	export let mark: string;
+	export let icon: ComponentType;
 
 	const score = scoreOf(sampleResult);
 	const counts = [1, 0, 1, 2, 2, 4, 6, 8, 7, 5, 3, 2, 1];
@@ -29,9 +30,11 @@
 				<svelte:component this={Fire} size={12} weight="fill" /> Streak
 			</p>
 		</div>
-		<button type="button" class="cursor-pointer rounded-xl px-1 py-1 hover:bg-neutral-200/70 dark:hover:bg-neutral-800">
-			<p class="m-0 text-5xl leading-none">{mark}</p>
-			<p class="mt-2 text-xs uppercase tracking-widest text-gray-400">Share</p>
+		<button type="button" class="cursor-pointer rounded-xl px-1 py-1 text-dark hover:bg-neutral-200/70 dark:text-light dark:hover:bg-neutral-800">
+			<span class="flex h-12 items-center justify-center">
+				<svelte:component this={icon} size={36} weight="bold" />
+			</span>
+			<p class="mt-1 text-xs uppercase tracking-widest text-gray-400">Share</p>
 		</button>
 	</div>
 
