@@ -5,6 +5,7 @@
 	import User from 'phosphor-svelte/lib/User';
 	import Globe from 'phosphor-svelte/lib/Globe';
 	import Fire from 'phosphor-svelte/lib/Fire';
+	import LinkSimple from 'phosphor-svelte/lib/LinkSimple';
 	import X from 'phosphor-svelte/lib/X';
 	import Histogram from '$lib/components/Histogram.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
@@ -12,6 +13,7 @@
 	import { emptyHistogram, histogramTotal, includeScore, type ScoreboardStats } from '$lib/scoreboard';
 	import { readPersonalHistogram } from '$lib/localPlay';
 	import { nameInitials, writePlayerName } from '$lib/playerName';
+	import { shareText } from '$lib/shareResult';
 	import { browser } from '$app/environment';
 
 	export let open = false;
@@ -21,12 +23,15 @@
 	export let scoreboard: ScoreboardStats | null;
 	export let timezone: string;
 	export let dateLabel = '';
+	export let letter = '';
+	export let correct: boolean[] = [];
 	export let onClose: () => void = () => {};
 	export let onSave: (player: PlayerProfile) => void = () => {};
 
 	let scope: 'you' | 'world' = 'world';
 	let nameValue = player?.name ?? '';
 	let errorMessage = '';
+	let copied = false;
 	let formElement: HTMLFormElement;
 
 	$: if (player) {
@@ -41,9 +46,20 @@
 	$: world = includeScore(scoreboard?.world ?? emptyHistogram(), score);
 	$: activeCounts = scope === 'you' ? personal : world;
 	$: streak = player?.streak ?? 0;
-	$: worldCount = scoreboard?.worldCount ?? 0;
-	$: percentile = scoreboard?.percentile ?? 0;
 	$: initials = nameInitials(nameValue);
+
+	async function copyResult() {
+		const text = shareText({ dateLabel, letter, correct });
+		try {
+			await navigator.clipboard.writeText(text);
+			copied = true;
+			window.setTimeout(() => {
+				copied = false;
+			}, 1600);
+		} catch {
+			errorMessage = 'Could not copy';
+		}
+	}
 
 	function saveProfile() {
 		writePlayerName(nameValue);
@@ -186,16 +202,19 @@
 							<svelte:component this={Fire} size={12} weight="fill" /> Streak
 						</p>
 					</div>
-					<div>
-						<h2 class="m-0 text-5xl text-dark dark:text-light">
-							{worldCount > 1 ? percentile : '—'}
-						</h2>
-						<p
-							class="mt-1 flex items-center justify-center gap-1 text-xs uppercase tracking-widest text-gray-400"
-						>
-							<svelte:component this={Globe} size={12} weight="bold" /> Percentile
+					<button
+						type="button"
+						class="cursor-pointer rounded-xl px-1 py-1 text-dark hover:bg-neutral-200/70 dark:text-light dark:hover:bg-neutral-800"
+						aria-label="Share result"
+						on:click={copyResult}
+					>
+						<span class="flex h-12 items-center justify-center">
+							<svelte:component this={LinkSimple} size={36} weight="bold" />
+						</span>
+						<p class="mt-1 text-xs uppercase tracking-widest text-gray-400">
+							{copied ? 'Copied' : 'Share'}
 						</p>
-					</div>
+					</button>
 				</div>
 
 				<div class="mt-8">

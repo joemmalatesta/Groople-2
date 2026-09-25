@@ -13,6 +13,7 @@
 	import { collectPlayClient } from '$lib/playClient';
 	import { formatPuzzleDate } from '$lib/puzzleDate';
 	import Scorecard from '$lib/components/Scorecard.svelte';
+	import PuzzleSkeleton from '$lib/components/PuzzleSkeleton.svelte';
 	import Landing from '$lib/components/Landing.svelte';
 	import Tutorial from '$lib/components/Tutorial.svelte';
 	import type { PlayerProfile } from '$lib/playerProfile';
@@ -278,7 +279,7 @@
 		{:else}
 		<div class="relative mt-5 flex w-full flex-col items-center {scoresModalOpen ? 'blur' : ''}">
 			{#if !puzzleReady}
-				<p class="text-dark dark:text-light">Loading today's puzzle...</p>
+				<PuzzleSkeleton />
 			{:else}
 				<form
 					bind:this={formElement}
@@ -301,21 +302,25 @@
 				>
 					<input type="hidden" name="letter" value={letter} />
 					<input type="hidden" name="player_id" value={playerId} />
-					{#each categories as category, index}
-						<div class="w-full">
-							<Category
-								loading={isValidating}
-								index={index + 1}
-								{category}
-								{letter}
-								valid={responseArray[index] ? 'yes' : 'no'}
-								{answersSubmitted}
-								disabled={scoresModalOpen}
-								recordedAnswer={answerArray[index] ?? ''}
-								reveal={revealAnswers}
-							/>
-						</div>
-					{/each}
+					{#if isValidating}
+						<PuzzleSkeleton scoring />
+					{:else}
+						{#each categories as category, index}
+							<div class="w-full">
+								<Category
+									loading={isValidating}
+									index={index + 1}
+									{category}
+									{letter}
+									valid={responseArray[index] ? 'yes' : 'no'}
+									{answersSubmitted}
+									disabled={scoresModalOpen}
+									recordedAnswer={answerArray[index] ?? ''}
+									reveal={revealAnswers}
+								/>
+							</div>
+						{/each}
+					{/if}
 					{#if !answersSubmitted}
 						<button
 							type="submit"
@@ -346,6 +351,8 @@
 			{scoreboard}
 			timezone={browserTimeZone()}
 			{dateLabel}
+			{letter}
+			correct={responseArray}
 			onClose={() => {
 				scoresModalOpen = false;
 			}}
