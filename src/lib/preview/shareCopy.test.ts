@@ -8,7 +8,7 @@ describe('shareText', () => {
 
 	it('keeps the link on its own line in every option', () => {
 		for (const id of ['dots', 'letter', 'sentence', 'line', 'receipt'] as const) {
-			expect(shareText(id, sampleResult)).toContain('https://groople.com');
+			expect(shareText(id, sampleResult)).toContain('https://groople.xyz');
 		}
 	});
 

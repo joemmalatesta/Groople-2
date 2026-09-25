@@ -64,7 +64,7 @@
 	<section id="link" class="mt-20 scroll-mt-20">
 		<h2 class="text-3xl text-dark dark:text-light">The link</h2>
 		<p class="mt-2 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-			Light field. The mark, the name, and the one-line rules stay on the left. Today’s letter sits large on the right. The shared address is still just groople.com, so every post unfurls this same card, with the letter swapped each day.
+			Light field. The mark, the name, and the one-line rules stay on the left. Today’s letter sits on the same line as Groople. The shared address is still just groople.xyz, so every post unfurls this same card, with the letter swapped each day.
 		</p>
 		<div class="mt-6 max-w-xl">
 			<LinkCards />

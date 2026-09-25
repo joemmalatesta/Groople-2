@@ -11,7 +11,7 @@ export const sampleResult: ShareResult = {
 	letter: 'S',
 	correct: [true, true, true, false, true, true, true, true, false, true, true, false],
 	streak: 4,
-	url: 'https://groople.com'
+	url: 'https://groople.xyz'
 };
 
 export function scoreOf(result: ShareResult): number {
