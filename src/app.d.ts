@@ -35,9 +35,17 @@ declare module 'phosphor-svelte/lib/Fire' {
 	export default Fire;
 }
 
-declare module '*.wasm?inline' {
-	const src: string;
-	export default src;
+declare module 'pngjs' {
+	export class PNG {
+		constructor(options: { width: number; height: number });
+		width: number;
+		height: number;
+		data: Buffer;
+		static sync: {
+			read(buffer: Buffer): PNG;
+			write(png: PNG): Buffer;
+		};
+	}
 }
 
 declare module 'phosphor-svelte/lib/X' {
