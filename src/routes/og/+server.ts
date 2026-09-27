@@ -1,36 +1,88 @@
-import { error } from '@sveltejs/kit';
+import satori from 'satori';
+import { Resvg, initWasm } from '@resvg/resvg-wasm';
+import type { ReactElement } from 'react';
 import type { RequestHandler } from './$types';
 import { loadOrCreatePuzzle } from '$lib/server/loadOrCreatePuzzle';
 import { localDateInTimezone } from '$lib/server/localDate';
+import { ogFontBase64 } from '$lib/ogFont';
+import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm?inline';
 
-function escapeXml(value: string): string {
-	return value
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;');
+const font = Uint8Array.from(Buffer.from(ogFontBase64, 'base64'));
+
+let wasmReady: Promise<void> | undefined;
+
+function ensureWasm(): Promise<void> {
+	if (!wasmReady) {
+		const base64 = resvgWasm.includes(',') ? resvgWasm.split(',')[1]! : resvgWasm;
+		wasmReady = initWasm(Uint8Array.from(Buffer.from(base64, 'base64')));
+	}
+	return wasmReady;
+}
+
+function el(
+	type: string,
+	style: Record<string, string | number>,
+	children?: unknown
+): ReactElement {
+	return { type, props: { style, children }, key: null } as unknown as ReactElement;
 }
 
 export const GET: RequestHandler = async () => {
-	let letter = '';
+	let letter = 'G';
+	// Draw even if today's puzzle cannot be loaded.
 	try {
 		const puzzle = await loadOrCreatePuzzle(localDateInTimezone('America/Los_Angeles'));
-		letter = puzzle.letter.toUpperCase();
+		letter = puzzle.letter.toUpperCase() || 'G';
 	} catch {
-		error(500, 'Could not draw card');
+		letter = 'G';
 	}
 
-	const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#f2f2f2"/>
-  <text x="72" y="470" fill="#1a1a1a" font-family="Georgia, 'Times New Roman', serif" font-size="92">Groople</text>
-  <text x="72" y="548" fill="#6b7280" font-family="Inter, Helvetica, Arial, sans-serif" font-size="28">12 categories. 100 seconds. One letter.</text>
-  <text x="1128" y="560" fill="#1a1a1a" font-family="Georgia, 'Times New Roman', serif" font-size="220" text-anchor="end">${escapeXml(letter)}</text>
-</svg>`;
+	const svg = await satori(
+		el(
+			'div',
+			{
+				width: '100%',
+				height: '100%',
+				display: 'flex',
+				alignItems: 'flex-end',
+				justifyContent: 'space-between',
+				background: '#f2f2f2',
+				color: '#1a1a1a',
+				padding: '72px',
+				fontFamily: 'Instrument Serif'
+			},
+			[
+				el('div', { display: 'flex', flexDirection: 'column' }, [
+					el('div', { fontSize: 92 }, 'Groople'),
+					el(
+						'div',
+						{ fontSize: 32, color: '#6b7280', marginTop: 18 },
+						'12 categories. 100 seconds. One letter.'
+					)
+				]),
+				el('div', { fontSize: 220, lineHeight: 1 }, letter)
+			]
+		),
+		{
+			width: 1200,
+			height: 630,
+			fonts: [
+				{
+					name: 'Instrument Serif',
+					data: font,
+					weight: 400,
+					style: 'normal'
+				}
+			]
+		}
+	);
 
-	return new Response(svg, {
+	await ensureWasm();
+	const png = new Resvg(svg).render().asPng();
+
+	return new Response(png, {
 		headers: {
-			'content-type': 'image/svg+xml; charset=utf-8',
+			'content-type': 'image/png',
 			'cache-control': 'public, max-age=300'
 		}
 	});

@@ -35,6 +35,11 @@ declare module 'phosphor-svelte/lib/Fire' {
 	export default Fire;
 }
 
+declare module '*.wasm?inline' {
+	const src: string;
+	export default src;
+}
+
 declare module 'phosphor-svelte/lib/X' {
 	const X: any;
 	export default X;
