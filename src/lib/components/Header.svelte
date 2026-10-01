@@ -7,7 +7,7 @@
 	let isHovered = false;
 </script>
 
-<div class="flex w-full justify-around gap-7 pt-4 pb-2">
+<div class="flex w-full flex-wrap items-start justify-around gap-x-7 gap-y-2 pt-4 pb-2">
 	<div class="flex flex-col items-center">
 		<h3
 			class="m-0 text-dark dark:text-light {inTopBar
@@ -25,7 +25,7 @@
 		</div>
 	</div>
 
-	<div class="flex w-16 flex-col items-center md:w-32">
+	<div class="flex w-fit min-w-16 flex-col items-center md:min-w-32">
 		<h3
 			class="m-0 text-dark dark:text-light {inTopBar
 				? 'hidden'

@@ -17,43 +17,46 @@
 		return [top, mid, 0];
 	}
 
-	function width(count: number): string {
-		return `${Math.max(count > 0 ? 6 : 0, Math.round((count / max) * 100))}%`;
-	}
-
-	function height(count: number): string {
-		if (count <= 0) {
+	function width(count: number, scale: number): string {
+		if (count <= 0 || scale <= 0) {
 			return '0%';
 		}
 
-		return `${Math.round((count / max) * 100)}%`;
+		return `${Math.max(6, Math.round((count / scale) * 100))}%`;
+	}
+
+	function barPercent(count: number, scale: number): number {
+		if (count <= 0 || scale <= 0) {
+			return 0;
+		}
+
+		return Math.round((count / scale) * 100);
 	}
 
 	function timesLabel(count: number): string {
 		return `Scored ${count} ${count === 1 ? 'time' : 'times'}`;
 	}
-
 </script>
 
 {#if variant === 'columns' || variant === 'overlay'}
 	<div class="flex gap-1.5">
 		<div class="flex h-36 w-4 shrink-0 flex-col justify-between">
 			{#each ticks as tick}
-				<span class="text-right text-[10px] leading-none tabular-nums text-gray-400">{tick}</span>
+				<span class="text-right text-[10px] leading-none text-gray-400 tabular-nums">{tick}</span>
 			{/each}
 		</div>
 		<div class="min-w-0 flex-1">
 			<div class="flex h-36 items-end gap-1">
 				{#each counts as count, index}
-					<div class="group relative flex h-full min-w-0 flex-1 flex-col justify-end">
+					<div class="group relative flex h-full min-w-0 flex-1 flex-col justify-end hover:z-30">
 						{#if overlay}
 							<div
 								class="absolute bottom-0 w-full rounded-sm bg-gray-300 dark:bg-gray-600"
-								style="height: {height(overlay[index] ?? 0)}"
+								style="height: {barPercent(overlay[index] ?? 0, max)}%"
 							></div>
 						{/if}
 						<div
-							class="relative w-full rounded-sm {index === highlight
+							class="relative w-full origin-bottom rounded-sm motion-safe:animate-chart-bar {index === highlight
 								? onDark
 									? 'bg-light'
 									: 'bg-dark dark:bg-light'
@@ -64,14 +67,15 @@
 									: onDark
 										? 'bg-light/30'
 										: 'bg-gray-400 dark:bg-gray-500'}"
-							style="height: {height(count)}"
-						></div>
-						<span
-							role="tooltip"
-							class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max -translate-x-1/2 rounded-md bg-dark px-2 py-1 text-center text-xs text-light opacity-0 shadow-lg transition-opacity delay-0 duration-0 group-hover:opacity-100 group-hover:delay-500"
+							style="height: {barPercent(count, max)}%; animation-delay: {index * 12}ms"
 						>
-							{timesLabel(count)}
-						</span>
+							<span
+								role="tooltip"
+								class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max -translate-x-1/2 rounded-md bg-dark px-2 py-1 text-center text-xs text-light opacity-0 shadow-lg transition-opacity delay-0 duration-0 group-hover:opacity-100 group-hover:delay-200"
+							>
+								{timesLabel(count)}
+							</span>
+						</div>
 					</div>
 				{/each}
 			</div>
@@ -104,7 +108,7 @@
 						class="h-full rounded-md {index === highlight
 							? 'bg-neutral-300 dark:bg-neutral-600'
 							: 'bg-neutral-200 dark:bg-neutral-800'}"
-						style="width: {width(count)}"
+						style="width: {width(count, max)}"
 					></div>
 				</div>
 			</div>
@@ -124,7 +128,7 @@
 						class="h-full rounded-full {index === highlight
 							? 'bg-dark dark:bg-light'
 							: 'bg-gray-400 dark:bg-gray-500'}"
-						style="width: {width(count)}"
+						style="width: {width(count, max)}"
 					></div>
 				</div>
 			</div>

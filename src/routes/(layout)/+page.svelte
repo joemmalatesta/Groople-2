@@ -16,6 +16,7 @@
 	import PuzzleSkeleton from '$lib/components/PuzzleSkeleton.svelte';
 	import Landing from '$lib/components/Landing.svelte';
 	import Tutorial from '$lib/components/Tutorial.svelte';
+	import Countdown from '$lib/components/Countdown.svelte';
 	import type { PlayerProfile } from '$lib/playerProfile';
 	import type { ScoreboardStats } from '$lib/scoreboard';
 	import favicon from '$lib/assets/favicon.svg';
@@ -277,91 +278,95 @@
 				}}
 			/>
 		{:else}
-		<div class="relative mt-5 flex w-full flex-col items-center {scoresModalOpen ? 'blur' : ''}">
-			{#if !puzzleReady}
-				<PuzzleSkeleton />
-			{:else}
-				<form
-					bind:this={formElement}
-					method="POST"
-					action="?/validate"
-					use:enhance={({ formData }) => {
-						isValidating = true;
-						stopTimer();
-						formData.set('tz', browserTimeZone());
-						formData.set('time_remaining_ms', String(remainingMs));
-						formData.set('client', JSON.stringify(collectPlayClient($theme)));
-						answerArray = collectAnswers();
-						return async ({ result, update }) => {
-							await update({ reset: false });
-							handleValidationResponse(result);
-							isValidating = false;
-						};
-					}}
-					class="w-full"
-				>
-					<input type="hidden" name="letter" value={letter} />
-					<input type="hidden" name="player_id" value={playerId} />
-					{#if isValidating}
-						<PuzzleSkeleton scoring answers={answerArray} />
-					{:else}
-						{#each categories as category, index}
-							<div class="w-full">
-								<Category
-									loading={isValidating}
-									index={index + 1}
-									{category}
-									{letter}
-									valid={responseArray[index] ? 'yes' : 'no'}
-									{answersSubmitted}
-									disabled={scoresModalOpen}
-									recordedAnswer={answerArray[index] ?? ''}
-									reveal={revealAnswers}
-								/>
-							</div>
-						{/each}
-					{/if}
-					{#if !answersSubmitted}
-						<button
-							type="submit"
-							class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light outline disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
-							disabled={isValidating}
-						>
-							{isValidating ? 'Scoring...' : 'Submit'}
-						</button>
-					{:else if !scoresModalOpen}
-						<button
-							type="button"
-							class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
-							on:click={() => {
-								scoresModalOpen = true;
-							}}
-						>
-							Results
-						</button>
-					{/if}
-				</form>
-			{/if}
-		</div>
-		<Scorecard
-			open={scoresModalOpen}
-			{playerId}
-			score={todayScore}
-			player={playerProfile}
-			{scoreboard}
-			timezone={browserTimeZone()}
-			{dateLabel}
-			{letter}
-			correct={responseArray}
-			onClose={() => {
-				scoresModalOpen = false;
-			}}
-			onSave={(saved) => {
-				playerProfile = saved;
-				playerName = saved.name ?? '';
-				writePlayerName(playerName);
-			}}
-		/>
+			<div class="relative mt-5 flex w-full flex-col items-center {scoresModalOpen ? 'blur' : ''}">
+				{#if !puzzleReady}
+					<PuzzleSkeleton />
+				{:else}
+					<form
+						bind:this={formElement}
+						method="POST"
+						action="?/validate"
+						use:enhance={({ formData }) => {
+							isValidating = true;
+							stopTimer();
+							formData.set('tz', browserTimeZone());
+							formData.set('time_remaining_ms', String(remainingMs));
+							formData.set('client', JSON.stringify(collectPlayClient($theme)));
+							answerArray = collectAnswers();
+							return async ({ result, update }) => {
+								await update({ reset: false });
+								handleValidationResponse(result);
+								isValidating = false;
+							};
+						}}
+						class="w-full"
+					>
+						<input type="hidden" name="letter" value={letter} />
+						<input type="hidden" name="player_id" value={playerId} />
+						{#if isValidating}
+							<PuzzleSkeleton scoring answers={answerArray} />
+						{:else}
+							{#each categories as category, index}
+								<div class="w-full">
+									<Category
+										loading={isValidating}
+										index={index + 1}
+										{category}
+										{letter}
+										valid={responseArray[index] ? 'yes' : 'no'}
+										{answersSubmitted}
+										disabled={scoresModalOpen}
+										recordedAnswer={answerArray[index] ?? ''}
+										reveal={revealAnswers}
+									/>
+								</div>
+							{/each}
+						{/if}
+						{#if !answersSubmitted}
+							<button
+								type="submit"
+								class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light outline disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
+								disabled={isValidating}
+							>
+								{isValidating ? 'Scoring...' : 'Submit'}
+							</button>
+						{:else if !scoresModalOpen}
+							<button
+								type="button"
+								class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
+								on:click={() => {
+									scoresModalOpen = true;
+								}}
+							>
+								Results
+							</button>
+						{/if}
+					</form>
+				{/if}
+			</div>
+			<Countdown
+				seconds={timer}
+				active={screen === 'puzzle' && puzzleReady && !answersSubmitted && !isValidating}
+			/>
+			<Scorecard
+				open={scoresModalOpen}
+				{playerId}
+				score={todayScore}
+				player={playerProfile}
+				{scoreboard}
+				timezone={browserTimeZone()}
+				{dateLabel}
+				{letter}
+				correct={responseArray}
+				onClose={() => {
+					scoresModalOpen = false;
+				}}
+				onSave={(saved) => {
+					playerProfile = saved;
+					playerName = saved.name ?? '';
+					writePlayerName(playerName);
+				}}
+			/>
 		{/if}
 	</div>
 </main>

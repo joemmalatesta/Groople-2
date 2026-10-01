@@ -20,9 +20,7 @@
 	$: isCorrect = valid === 'yes';
 	$: startsWithLetter = inputValue.toLowerCase().startsWith(letter.toLowerCase());
 	$: fadeDelay = (index - 1) * 50;
-	$: lockinClass = isCorrect
-		? 'rounded-md bg-neutral-200 dark:bg-neutral-800'
-		: 'opacity-45';
+	$: lockinClass = isCorrect ? 'rounded-md bg-neutral-200 dark:bg-neutral-800' : 'opacity-45';
 </script>
 
 {#if answersSubmitted}
@@ -31,18 +29,23 @@
 	>
 		<div class="flex min-w-0 items-baseline gap-2 md:flex-1">
 			<span class="min-w-6 shrink-0 text-base font-medium text-dark dark:text-light">{index}.</span>
-			<span class="text-base font-medium text-dark dark:text-light">{category}</span>
+			<span class="text-base font-medium wrap-break-word text-dark dark:text-light">{category}</span
+			>
 		</div>
 		{#if reveal}
 			<p
-				class="pl-8 text-base text-dark dark:text-light md:w-7/12 md:pl-0 {hasAnswer ? '' : 'italic'}"
+				class="pl-8 text-base text-dark md:w-7/12 md:pl-0 dark:text-light {hasAnswer
+					? ''
+					: 'italic'}"
 				in:fade={{ delay: fadeDelay, duration: 280 }}
 			>
 				{displayAnswer}
 			</p>
 		{:else}
 			<p
-				class="pl-8 text-base text-dark dark:text-light md:w-7/12 md:pl-0 {hasAnswer ? '' : 'italic'}"
+				class="pl-8 text-base text-dark md:w-7/12 md:pl-0 dark:text-light {hasAnswer
+					? ''
+					: 'italic'}"
 			>
 				{displayAnswer}
 			</p>
@@ -52,7 +55,9 @@
 	<div class="flex flex-col justify-between py-1 md:flex-row md:items-center md:gap-4">
 		<div class="flex items-center md:gap-2">
 			<span class="min-w-6 text-base font-medium text-dark dark:text-light">{index}.</span>
-			<span class="flex-1 text-base font-medium text-dark dark:text-light">{category}</span>
+			<span class="flex-1 text-base font-medium wrap-break-word text-dark dark:text-light"
+				>{category}</span
+			>
 		</div>
 		<div class="relative mb-7 md:mb-0 md:w-7/12 {loading ? 'opacity-60' : ''}">
 			<input
@@ -61,7 +66,7 @@
 				bind:value={inputValue}
 				name="answer-{index}"
 				placeholder="{letter.toUpperCase()}..."
-				disabled={disabled}
+				{disabled}
 				readonly={locked}
 				class="w-full border-b py-2 text-base text-dark transition-colors duration-200 placeholder:text-gray-400 focus:outline-none dark:text-light dark:placeholder:text-light/30 {locked
 					? 'cursor-default'

@@ -7,6 +7,32 @@
 	--color-light: #f2f2f2;
 	--color-dark: #1a1a1a;
 	--font-inter: 'Inter', sans-serif;
+	--animate-countdown: countdown 1s ease-in-out forwards;
+	--animate-chart-bar: chart-bar 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+	@keyframes chart-bar {
+		from {
+			transform: scaleY(0);
+		}
+		to {
+			transform: scaleY(1);
+		}
+	}
+
+	@keyframes countdown {
+		0% {
+			transform: scale(0.75);
+			opacity: 0;
+		}
+		50% {
+			transform: scale(1.25);
+			opacity: 0.8;
+		}
+		100% {
+			transform: scale(0.75);
+			opacity: 0;
+		}
+	}
 }
 
 :root {
