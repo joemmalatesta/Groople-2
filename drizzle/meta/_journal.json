@@ -57,6 +57,13 @@
       "when": 1789700400000,
       "tag": "0007_play_client",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790816356806,
+      "tag": "0008_superb_robin_chapel",
+      "breakpoints": true
     }
   ]
 }

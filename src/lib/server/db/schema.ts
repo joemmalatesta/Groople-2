@@ -46,10 +46,27 @@ export const players = pgTable(
 		streak: integer('streak').notNull().default(0),
 		maxStreak: integer('max_streak').notNull().default(0),
 		name: text('name'),
+		email: text('email'),
 		metadata: text('metadata')
 	},
 	(table) => ({
 		lastPlayedIdx: index('players_last_played_on_idx').on(table.lastPlayedOn)
+	})
+);
+
+export const feedback = pgTable(
+	'feedback',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		playerId: uuid('player_id')
+			.notNull()
+			.references(() => players.id),
+		email: text('email'),
+		body: text('body').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+	},
+	(table) => ({
+		playerIdx: index('feedback_player_id_idx').on(table.playerId)
 	})
 );
 
@@ -66,7 +83,10 @@ export const dailyPuzzleSlots = pgTable(
 	},
 	(table) => ({
 		pk: primaryKey({ columns: [table.date, table.position] }),
-		uniqueCategory: unique('daily_puzzle_slots_date_category_unique').on(table.date, table.categoryId)
+		uniqueCategory: unique('daily_puzzle_slots_date_category_unique').on(
+			table.date,
+			table.categoryId
+		)
 	})
 );
 
