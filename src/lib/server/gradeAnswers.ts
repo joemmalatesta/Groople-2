@@ -31,97 +31,70 @@ type AnswerSlot = {
 };
 
 /**
- * Boundary cases every answer is judged against. Passed once in state so the
- * shots are not copied onto each question.
+ * One illustration of each rule. None of these are taken from played answers.
+ * Passed once in state so the shots are not copied onto each question.
  */
 const examples = {
 	pass: [
-		{ category: 'Foods', response: 'Pear' },
-		{ category: 'Ice cream flavors', response: 'Pink lemonade' },
-		{ category: 'Ice cream flavors', response: 'Rocky Road' },
+		{
+			category: 'Foods',
+			response: 'Pear',
+			note: 'The answer is itself an example of the category.'
+		},
 		{
 			category: 'Vegetables',
 			response: 'Green beans',
-			note: 'Green is part of the name.'
+			note: 'The first word is part of the real name.'
 		},
 		{
-			category: 'Vehicles',
-			response: 'Konesegg',
-			note: 'Light misspelling of Koenigsegg.'
+			category: 'Vegetables',
+			response: 'Brocoli',
+			note: 'A light misspelling of a real answer still passes.'
 		},
 		{
-			category: 'Household Chores',
-			response: 'vaccuum',
-			note: 'Light misspelling of vacuum. A small typo of an ordinary word passes the same way a brand typo does.'
+			category: 'Books',
+			response: 'Stone Junction',
+			note: 'A specific title or name passes even when it is unfamiliar.'
 		},
 		{
-			category: 'Book titles',
-			response: "King's Speec",
-			note: 'Light misspelling of a real title.'
-		},
-		{
-			category: 'Hobbies',
-			response: 'punch needling',
-			note: 'A specific hobby passes even if it is unfamiliar.'
-		},
-		{ category: 'Languages', response: 'Irish' },
-		{
-			category: 'Household Chores',
-			response: 'Vacuuming',
-			note: 'The chore itself starts with the letter.'
-		},
-		{
-			category: 'Reasons to make a phone call',
-			response: 'Just to say hi',
+			category: 'Things you are afraid of',
+			response: 'Thunder',
 			note: 'A loose category. A sincere specific example passes.'
 		}
 	],
 	fail: [
 		{
-			category: 'Ice cream flavors',
-			response: 'Pear',
-			note: 'A fruit. Pear fits Foods. It is not a flavor.'
+			category: 'Foods',
+			response: 'A pear',
+			for_letter: 'A',
+			note: 'A, an, and the do not count. The food is pear, which does not start with A.'
 		},
 		{
 			category: 'Ice cream flavors',
-			response: 'Plum',
-			note: 'A fruit, not a flavor. Pink lemonade is a flavor name and passes.'
-		},
-		{
-			category: 'Diet foods',
 			response: 'Pear',
-			note: 'A food, not a diet food.'
-		},
-		{
-			category: 'Household Chores',
-			response: 'running the vaccuum',
-			note: 'Fails for the letter R. Vacuuming is the chore. Running was added so the answer starts with R. The misspelling does not save it.'
+			note: 'A nearby thing is not enough. A fruit is not a flavor.'
 		},
 		{
 			category: 'Vegetables',
 			response: 'Giant carrot',
-			note: 'Giant was added to hit the letter. Carrot is the vegetable.'
+			note: 'A word added only to hit the letter. The vegetable is carrot.'
 		},
 		{
-			category: 'Type of music',
-			response: 'Piano',
-			note: 'An instrument, not a type of music.'
-		},
-		{ category: 'Languages', response: 'Indian', note: 'Not a language. Irish is.' },
-		{ category: 'Farm animals', response: 'Kangaroo', note: 'Not a farm animal.' },
-		{ category: 'Book titles', response: 'Kingdom', note: 'Too generic to be a title.' }
+			category: 'Movies',
+			response: 'Good',
+			note: 'A generic word is not an example.'
+		}
 	]
 };
 
 const criteria = {
 	true: {
-		what: 'An example of the category. A light misspelling of one still passes. An unfamiliar specific title, game, movie, brand, or name still passes. On a loose category, a sincere specific example passes.',
+		what: 'The response is itself an example of the category. A light misspelling still passes. A specific title or name still passes when it is unfamiliar. On a loose category, a sincere specific example passes. A first word that is part of the real name passes.',
 		like: '`examples.pass`'
 	},
 	false: {
-		what: 'A different kind of thing, a generic word, or a leading adjective or other extra word added so the answer starts with the letter. That leading word passes only when it is part of the real name, as with Green beans. A misspelling does not fix a leading-word cheat or a category miss.',
-		not_for:
-			'Do not fail a specific title or name only because it is unfamiliar, or because of a light misspelling.',
+		what: 'A different or neighboring kind of thing, a generic word, or a word added only so the answer starts with the letter. A, an, and the never count as that word. Each fail example illustrates one of these, and its for_letter applies only to that example.',
+		not_for: 'Do not fail a specific title or name only because it is unfamiliar, or because of a light misspelling.',
 		like: '`examples.fail`'
 	}
 };
