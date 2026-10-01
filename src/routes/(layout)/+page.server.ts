@@ -6,6 +6,7 @@ import { getPlayForPlayerDate, persistPlay } from '$lib/server/persistPlay';
 import {
 	findPlayerByMetadata,
 	getPlayer,
+	savePlayerFeedback,
 	upsertPlayerProfile
 } from '$lib/server/players';
 import { getScoreboardStats } from '$lib/server/scoreboard';
@@ -119,11 +120,33 @@ export const actions: Actions = {
 		}
 	},
 
+	feedback: async ({ request }) => {
+		try {
+			const formData = await request.formData();
+			const playerId = parsePlayerId(formData.get('player_id'));
+			if (!playerId) {
+				return { success: false, error: 'Could not save feedback' };
+			}
+
+			const email = typeof formData.get('email') === 'string' ? formData.get('email') : '';
+			const body = typeof formData.get('body') === 'string' ? formData.get('body') : '';
+			const player = await savePlayerFeedback({
+				playerId,
+				email: String(email),
+				body: String(body)
+			});
+
+			return { success: true, player };
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Could not save feedback';
+			return { success: false, error: message };
+		}
+	},
+
 	restore: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const metadata =
-				typeof formData.get('metadata') === 'string' ? formData.get('metadata') : '';
+			const metadata = typeof formData.get('metadata') === 'string' ? formData.get('metadata') : '';
 			const player = await findPlayerByMetadata(String(metadata));
 			if (!player) {
 				return { success: false, error: 'No player found with that metadata' };
