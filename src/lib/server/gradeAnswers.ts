@@ -31,6 +31,102 @@ type AnswerSlot = {
 };
 
 /**
+ * Boundary cases every answer is judged against. Passed once in state so the
+ * shots are not copied onto each question.
+ */
+const examples = {
+	pass: [
+		{ category: 'Foods', response: 'Pear' },
+		{ category: 'Ice cream flavors', response: 'Pink lemonade' },
+		{ category: 'Ice cream flavors', response: 'Rocky Road' },
+		{
+			category: 'Vegetables',
+			response: 'Green beans',
+			note: 'Green is part of the name.'
+		},
+		{
+			category: 'Vehicles',
+			response: 'Konesegg',
+			note: 'Light misspelling of Koenigsegg.'
+		},
+		{
+			category: 'Household Chores',
+			response: 'vaccuum',
+			note: 'Light misspelling of vacuum. A small typo of an ordinary word passes the same way a brand typo does.'
+		},
+		{
+			category: 'Book titles',
+			response: "King's Speec",
+			note: 'Light misspelling of a real title.'
+		},
+		{
+			category: 'Hobbies',
+			response: 'punch needling',
+			note: 'A specific hobby passes even if it is unfamiliar.'
+		},
+		{ category: 'Languages', response: 'Irish' },
+		{
+			category: 'Household Chores',
+			response: 'Vacuuming',
+			note: 'The chore itself starts with the letter.'
+		},
+		{
+			category: 'Reasons to make a phone call',
+			response: 'Just to say hi',
+			note: 'A loose category. A sincere specific example passes.'
+		}
+	],
+	fail: [
+		{
+			category: 'Ice cream flavors',
+			response: 'Pear',
+			note: 'A fruit. Pear fits Foods. It is not a flavor.'
+		},
+		{
+			category: 'Ice cream flavors',
+			response: 'Plum',
+			note: 'A fruit, not a flavor. Pink lemonade is a flavor name and passes.'
+		},
+		{
+			category: 'Diet foods',
+			response: 'Pear',
+			note: 'A food, not a diet food.'
+		},
+		{
+			category: 'Household Chores',
+			response: 'running the vaccuum',
+			note: 'Fails for the letter R. Vacuuming is the chore. Running was added so the answer starts with R. The misspelling does not save it.'
+		},
+		{
+			category: 'Vegetables',
+			response: 'Giant carrot',
+			note: 'Giant was added to hit the letter. Carrot is the vegetable.'
+		},
+		{
+			category: 'Type of music',
+			response: 'Piano',
+			note: 'An instrument, not a type of music.'
+		},
+		{ category: 'Languages', response: 'Indian', note: 'Not a language. Irish is.' },
+		{ category: 'Farm animals', response: 'Kangaroo', note: 'Not a farm animal.' },
+		{ category: 'Book titles', response: 'Kingdom', note: 'Too generic to be a title.' }
+	]
+};
+
+const criteria = {
+	true: {
+		what: 'An example of the category. A light misspelling of one still passes. An unfamiliar specific title, game, movie, brand, or name still passes. On a loose category, a sincere specific example passes.',
+		like: '`examples.pass`'
+	},
+	false: {
+		what: 'A different kind of thing, a generic word, or a leading adjective or other extra word added so the answer starts with the letter. That leading word passes only when it is part of the real name, as with Green beans. A misspelling does not fix a leading-word cheat or a category miss.',
+		not_for:
+			'Do not fail a specific title or name only because it is unfamiliar, or because of a light misspelling.',
+		like: '`examples.fail`'
+	}
+};
+
+/**
  * Grade Scattergories answers: exact letter matching in code, category/fairness
  * judgments from TypeSafe Noul questions in one batched request.
  */
@@ -68,12 +164,12 @@ export async function gradeAnswers(params: {
 			response: slot.response
 		};
 		questions[id] = noul(
-			`Is \`answers.${id}.response\` a valid Scattergories answer for category \`answers.${id}.category\`?`,
 			{
-				true: 'A real, reasonably well-known example of the category that a typical group of players would accept.',
-				false:
-					'It does not belong in the category, is made-up or random, is too vague, or only works because a descriptive word was added to force a match with `required_letter`.'
-			}
+				question: `Is \`answers.${id}.response\` an example of \`answers.${id}.category\`?`,
+				focus:
+					'Apply the standard in `examples`. Those shots show the boundary. This response does not have to resemble their categories. It already starts with `required_letter`.'
+			},
+			criteria
 		);
 	}
 
@@ -83,12 +179,7 @@ export async function gradeAnswers(params: {
 		state: {
 			game: 'Scattergories',
 			required_letter: params.letter.toUpperCase(),
-			rules: [
-				'The player already passed a letter-prefix check in code; judge category fit and fairness only.',
-				'Reject vague answers and answers that seem made up or random.',
-				'Reject answers that unjustly use extra descriptive words to cheat.',
-				'Be strict but fair.'
-			],
+			examples,
 			answers: answersState
 		},
 		questions
