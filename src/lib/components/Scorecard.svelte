@@ -10,7 +10,12 @@
 	import Histogram from '$lib/components/Histogram.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import type { PlayerProfile } from '$lib/playerProfile';
-	import { emptyHistogram, histogramTotal, includeScore, type ScoreboardStats } from '$lib/scoreboard';
+	import {
+		emptyHistogram,
+		histogramTotal,
+		includeScore,
+		type ScoreboardStats
+	} from '$lib/scoreboard';
 	import { readPersonalHistogram } from '$lib/localPlay';
 	import { nameInitials, writePlayerName } from '$lib/playerName';
 	import { shareText } from '$lib/shareResult';
@@ -93,7 +98,7 @@
 			on:click={close}
 		></button>
 		<div
-			class="relative z-10 w-full max-w-md rounded-2xl bg-light px-6 py-7 shadow-2xl dark:bg-neutral-900"
+			class="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-light px-6 py-7 shadow-2xl dark:bg-neutral-900"
 			in:scale={{ duration: 220, start: 0.94, easing: cubicOut }}
 			role="dialog"
 			aria-modal="true"
@@ -152,14 +157,15 @@
 							autocomplete="nickname"
 							placeholder="Your name"
 							on:blur={saveProfile}
-							class="min-w-0 w-full bg-transparent text-sm text-dark placeholder:text-gray-400 focus:outline-none dark:text-light"
+							class="w-full min-w-0 bg-transparent text-base text-dark placeholder:text-gray-400 focus:outline-none dark:text-light"
 						/>
 					</label>
 					<div class="flex rounded-full border border-gray-200 dark:border-gray-700">
 						<Tooltip text="You" align="end" side="bottom">
 							<button
 								type="button"
-								class="flex cursor-pointer items-center gap-1 rounded-l-full px-2.5 py-1 {scope === 'you'
+								class="flex cursor-pointer items-center gap-1 rounded-l-full px-2.5 py-1 {scope ===
+								'you'
 									? 'bg-dark text-light dark:bg-light dark:text-dark'
 									: 'text-gray-400'}"
 								aria-label="You"
@@ -171,7 +177,8 @@
 						<Tooltip text="World" align="end" side="bottom">
 							<button
 								type="button"
-								class="flex cursor-pointer items-center gap-1 rounded-r-full px-2.5 py-1 {scope === 'world'
+								class="flex cursor-pointer items-center gap-1 rounded-r-full px-2.5 py-1 {scope ===
+								'world'
 									? 'bg-dark text-light dark:bg-light dark:text-dark'
 									: 'text-gray-400'}"
 								aria-label="World"
@@ -191,36 +198,38 @@
 					</button>
 				</div>
 
-				<div class="mt-4 grid grid-cols-3 gap-2 text-center">
-					<div>
+				<div class="mt-4 flex flex-wrap justify-evenly gap-x-2 gap-y-4 text-center">
+					<div class="min-w-20 flex-1">
 						<h2 id="scoreboard-title" class="m-0 text-5xl text-dark dark:text-light">{score}</h2>
-						<p class="mt-1 text-xs uppercase tracking-widest text-gray-400">Score</p>
+						<p class="mt-1 text-xs tracking-widest text-gray-400 uppercase">Score</p>
 					</div>
-					<div>
+					<div class="min-w-20 flex-1">
 						<h2 class="m-0 text-5xl text-dark dark:text-light">{streak}</h2>
 						<p
-							class="mt-1 flex items-center justify-center gap-1 text-xs uppercase tracking-widest text-gray-400"
+							class="mt-1 flex items-center justify-center gap-1 text-xs tracking-widest text-gray-400 uppercase"
 						>
 							<svelte:component this={Fire} size={12} weight="fill" /> Streak
 						</p>
 					</div>
 					<button
 						type="button"
-						class="cursor-pointer rounded-xl px-1 py-1 text-dark hover:bg-neutral-200/70 dark:text-light dark:hover:bg-neutral-800"
+						class="min-w-20 flex-1 cursor-pointer rounded-xl px-1 py-1 text-dark hover:bg-neutral-200/70 dark:text-light dark:hover:bg-neutral-800"
 						aria-label="Share result"
 						on:click={copyResult}
 					>
 						<span class="flex h-12 items-center justify-center">
 							<LinkPinch bind:this={shareIcon} />
 						</span>
-						<p class="mt-1 text-xs uppercase tracking-widest text-gray-400">
+						<p class="mt-1 text-xs tracking-widest text-gray-400 uppercase">
 							{copied ? 'Copied' : 'Share'}
 						</p>
 					</button>
 				</div>
 
 				<div class="mt-8">
-					<Histogram counts={activeCounts} highlight={score} variant="columns" />
+					{#key scope}
+						<Histogram counts={activeCounts} highlight={score} variant="columns" />
+					{/key}
 				</div>
 
 				<p class="mt-6 text-center text-sm text-gray-400">

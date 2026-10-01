@@ -19,7 +19,9 @@
 		<p class="text-sm text-gray-400">{dateLabel}</p>
 	{/if}
 	<h1
-		class="text-4xl font-semibold text-dark dark:text-light md:text-5xl {dateLabel ? 'mt-3' : ''}"
+		class="max-w-full text-4xl font-semibold wrap-break-word text-dark md:text-5xl dark:text-light {dateLabel
+			? 'mt-3'
+			: ''}"
 	>
 		{greeting}
 	</h1>

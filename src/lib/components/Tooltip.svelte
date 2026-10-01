@@ -5,11 +5,11 @@
 	export let full = false;
 </script>
 
-<span class="group relative inline-flex {full ? 'h-full min-w-0 w-full flex-1' : ''}">
+<span class="group relative inline-flex {full ? 'h-full w-full min-w-0 flex-1' : ''}">
 	<slot />
 	<span
 		role="tooltip"
-		class="pointer-events-none absolute z-20 w-max rounded-md bg-dark px-2 py-1 text-center text-xs text-light opacity-0 shadow-lg transition-opacity delay-0 duration-0 group-hover:opacity-100 group-hover:delay-500 {side ===
+		class="pointer-events-none absolute z-20 w-max rounded-md bg-dark px-2 py-1 text-center text-xs text-light opacity-0 shadow-lg transition-opacity delay-0 duration-0 group-hover:opacity-100 group-hover:delay-200 {side ===
 		'top'
 			? 'bottom-full mb-2'
 			: 'top-full mt-2'} {align === 'center'
