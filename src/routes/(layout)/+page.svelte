@@ -19,6 +19,7 @@
 	import Countdown from '$lib/components/Countdown.svelte';
 	import type { PlayerProfile } from '$lib/playerProfile';
 	import type { ScoreboardStats } from '$lib/scoreboard';
+	import type { SavedPlay } from '$lib/savedPlay';
 	import favicon from '$lib/assets/favicon.svg';
 	import faviconLight from '$lib/assets/favicon-light.svg';
 
@@ -45,13 +46,31 @@
 	let startedAt = 0;
 	let timerInterval: ReturnType<typeof setInterval> | undefined;
 	let scrollPosition = 0;
+	let archive: ArchiveBoard | null = null;
+	let archiveLoading = false;
+	let archiveRequest = 0;
+
+	type ArchiveBoard = {
+		date: string;
+		categories: string[];
+		letter: string;
+		answers: string[];
+		validationResults: boolean[];
+		timeRemainingMs: number;
+	};
 
 	$: categories = data.categories;
 	$: letter = data.letter;
+	$: boardCategories = archive?.categories ?? categories;
+	$: boardLetter = archive?.letter ?? letter;
+	$: boardAnswers = archive?.answers ?? answerArray;
+	$: boardCorrect = archive?.validationResults ?? responseArray;
+	$: viewingPast = archive !== null;
 	$: puzzleReady = Boolean(playerId) && letter.length > 0 && categories.length === 12;
 	$: dateLabel = data.date ? formatPuzzleDate(data.date) : '';
-	$: timer = Math.floor(remainingMs / 1000);
-	$: milliseconds = remainingMs % 1000;
+	$: headerRemainingMs = archive ? archive.timeRemainingMs : remainingMs;
+	$: timer = Math.floor(headerRemainingMs / 1000);
+	$: milliseconds = headerRemainingMs % 1000;
 	$: if (!answersSubmitted && answerArray.length !== categories.length) {
 		answerArray = categories.map(() => '');
 	}
@@ -222,6 +241,96 @@
 			formElement.requestSubmit();
 		}
 	}
+
+	function backToToday() {
+		archiveRequest += 1;
+		archive = null;
+		archiveLoading = false;
+	}
+
+	function isStringList(value: unknown, length: number): value is string[] {
+		return (
+			Array.isArray(value) &&
+			value.length === length &&
+			value.every((item) => typeof item === 'string')
+		);
+	}
+
+	function isSavedPlay(
+		value: unknown
+	): value is Pick<SavedPlay, 'answers' | 'validationResults' | 'timeRemainingMs'> {
+		if (!value || typeof value !== 'object') {
+			return false;
+		}
+		const play = value as Partial<SavedPlay>;
+		return (
+			isStringList(play.answers, 12) &&
+			Array.isArray(play.validationResults) &&
+			play.validationResults.length === 12 &&
+			play.validationResults.every((item) => typeof item === 'boolean') &&
+			typeof play.timeRemainingMs === 'number'
+		);
+	}
+
+	async function openPlayedDay(date: string) {
+		if (date === data.date) {
+			backToToday();
+			return;
+		}
+
+		const request = ++archiveRequest;
+		archiveLoading = true;
+		try {
+			const response = await fetch('/api/puzzle', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+					accept: 'application/json'
+				},
+				body: JSON.stringify({
+					playerId,
+					date,
+					tz: browserTimeZone()
+				})
+			});
+			if (!response.ok || request !== archiveRequest) {
+				return;
+			}
+
+			const puzzle: unknown = await response.json();
+			if (!puzzle || typeof puzzle !== 'object' || request !== archiveRequest) {
+				return;
+			}
+
+			const body = puzzle as {
+				date?: unknown;
+				categories?: unknown;
+				letter?: unknown;
+				play?: unknown;
+			};
+			if (
+				typeof body.date !== 'string' ||
+				typeof body.letter !== 'string' ||
+				!isStringList(body.categories, 12) ||
+				!isSavedPlay(body.play)
+			) {
+				return;
+			}
+
+			archive = {
+				date: body.date,
+				categories: body.categories,
+				letter: body.letter,
+				answers: body.play.answers,
+				validationResults: body.play.validationResults,
+				timeRemainingMs: body.play.timeRemainingMs
+			};
+		} finally {
+			if (request === archiveRequest) {
+				archiveLoading = false;
+			}
+		}
+	}
 </script>
 
 <main class="mx-auto flex w-full max-w-3xl flex-1 flex-col">
@@ -242,7 +351,7 @@
 				: 0.8}); pointer-events: {scrollPosition > 100 ? 'auto' : 'none'};"
 		>
 			{#if screen === 'puzzle' && puzzleReady}
-				<Header {letter} {timer} {milliseconds} inTopBar={true} />
+				<Header letter={boardLetter} {timer} {milliseconds} inTopBar={true} />
 			{/if}
 		</div>
 		<ThemeToggle />
@@ -254,7 +363,7 @@
 			style="opacity: {scrollPosition > 100 ? 0 : 1};"
 		>
 			{#if puzzleReady}
-				<Header {letter} {timer} {milliseconds} />
+				<Header letter={boardLetter} {timer} {milliseconds} />
 			{/if}
 		</div>
 	{/if}
@@ -279,8 +388,17 @@
 			/>
 		{:else}
 			<div class="relative mt-5 flex w-full flex-col items-center {scoresModalOpen ? 'blur' : ''}">
-				{#if !puzzleReady}
+				{#if archiveLoading || !puzzleReady}
 					<PuzzleSkeleton />
+					{#if archiveLoading}
+						<button
+							type="button"
+							class="mt-5 mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
+							on:click={backToToday}
+						>
+							Back to today
+						</button>
+					{/if}
 				{:else}
 					<form
 						bind:this={formElement}
@@ -306,23 +424,36 @@
 						{#if isValidating}
 							<PuzzleSkeleton scoring answers={answerArray} />
 						{:else}
-							{#each categories as category, index}
-								<div class="w-full">
-									<Category
-										loading={isValidating}
-										index={index + 1}
-										{category}
-										{letter}
-										valid={responseArray[index] ? 'yes' : 'no'}
-										{answersSubmitted}
-										disabled={scoresModalOpen}
-										recordedAnswer={answerArray[index] ?? ''}
-										reveal={revealAnswers}
-									/>
-								</div>
-							{/each}
+							{#key archive?.date ?? 'today'}
+								{#each boardCategories as category, index}
+									<div class="w-full">
+										<Category
+											loading={isValidating}
+											index={index + 1}
+											{category}
+											letter={boardLetter}
+											valid={boardCorrect[index] ? 'yes' : 'no'}
+											answersSubmitted={viewingPast || answersSubmitted}
+											disabled={scoresModalOpen || viewingPast}
+											recordedAnswer={boardAnswers[index] ?? ''}
+											reveal={viewingPast || revealAnswers}
+										/>
+									</div>
+								{/each}
+							{/key}
 						{/if}
-						{#if !answersSubmitted}
+						{#if archive}
+							<p class="mb-3 text-center text-sm text-gray-400">
+								{formatPuzzleDate(archive.date)}
+							</p>
+							<button
+								type="button"
+								class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
+								on:click={backToToday}
+							>
+								Back to today
+							</button>
+						{:else if !answersSubmitted}
 							<button
 								type="submit"
 								class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light outline disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
@@ -355,9 +486,11 @@
 				player={playerProfile}
 				{scoreboard}
 				timezone={browserTimeZone()}
+				puzzleDate={data.date}
 				{dateLabel}
 				{letter}
 				correct={responseArray}
+				onOpenDay={openPlayedDay}
 				onClose={() => {
 					scoresModalOpen = false;
 				}}

@@ -5,6 +5,9 @@
 	import User from 'phosphor-svelte/lib/User';
 	import Globe from 'phosphor-svelte/lib/Globe';
 	import Fire from 'phosphor-svelte/lib/Fire';
+	import CalendarBlank from 'phosphor-svelte/lib/CalendarBlank';
+	import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
+	import CaretRight from 'phosphor-svelte/lib/CaretRight';
 	import LinkPinch from '$lib/components/LinkPinch.svelte';
 	import X from 'phosphor-svelte/lib/X';
 	import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft';
@@ -28,13 +31,22 @@
 	export let player: PlayerProfile | null;
 	export let scoreboard: ScoreboardStats | null;
 	export let timezone: string;
+	export let puzzleDate = '';
 	export let dateLabel = '';
 	export let letter = '';
 	export let correct: boolean[] = [];
 	export let onClose: () => void = () => {};
 	export let onSave: (player: PlayerProfile) => void = () => {};
+	export let onOpenDay: (date: string) => void = () => {};
+
+	const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 	let scope: 'you' | 'world' = 'world';
+	let showCalendar = false;
+	let playedDates: string[] = [];
+	let datesLoadedFor = '';
+	let datesLoading = false;
+	let visibleMonth = monthStart(puzzleDate);
 	let view: 'scores' | 'feedback' | 'thanks' = 'scores';
 	let direction = 1;
 	let switching = false;
@@ -66,8 +78,12 @@
 		feedbackBody = '';
 		feedbackError = '';
 		submitting = false;
+		showCalendar = false;
+		visibleMonth = monthStart(puzzleDate);
 	}
 	$: wasOpen = open;
+	$: played = new Set(playedDates);
+	$: monthCells = buildMonth(visibleMonth);
 
 	$: localPersonal = browser ? readPersonalHistogram() : emptyHistogram();
 	$: personal = includeScore(
@@ -85,6 +101,12 @@
 			await navigator.clipboard.writeText(text);
 			copied = true;
 			shareIcon?.play();
+			if (playerId && puzzleDate) {
+				const body = new FormData();
+				body.set('player_id', playerId);
+				body.set('date', puzzleDate);
+				void fetch('?/share', { method: 'POST', body });
+			}
 			window.setTimeout(() => {
 				copied = false;
 			}, 1700);
@@ -105,6 +127,77 @@
 		window.setTimeout(() => {
 			switching = false;
 		}, 260);
+	}
+
+	function monthStart(isoDate: string): Date {
+		const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+		if (!match) {
+			const now = new Date();
+			return new Date(now.getFullYear(), now.getMonth(), 1);
+		}
+		return new Date(Number(match[1]), Number(match[2]) - 1, 1);
+	}
+
+	function shiftMonth(delta: number) {
+		visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + delta, 1);
+	}
+
+	function buildMonth(month: Date): Array<{ date: string; day: number } | null> {
+		const year = month.getFullYear();
+		const monthIndex = month.getMonth();
+		const firstWeekday = new Date(year, monthIndex, 1).getDay();
+		const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+		const cells: Array<{ date: string; day: number } | null> = [];
+		for (let index = 0; index < firstWeekday; index += 1) {
+			cells.push(null);
+		}
+		for (let day = 1; day <= daysInMonth; day += 1) {
+			const date = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+			cells.push({ date, day });
+		}
+		return cells;
+	}
+
+	async function loadPlayedDates() {
+		if (!playerId || datesLoadedFor === playerId || datesLoading) {
+			return;
+		}
+		datesLoading = true;
+		try {
+			const response = await fetch('/api/plays', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+					accept: 'application/json'
+				},
+				body: JSON.stringify({ playerId })
+			});
+			if (!response.ok) {
+				return;
+			}
+			const body: unknown = await response.json();
+			if (body && typeof body === 'object' && 'dates' in body && Array.isArray(body.dates)) {
+				playedDates = body.dates.filter((date): date is string => typeof date === 'string');
+				datesLoadedFor = playerId;
+			}
+		} finally {
+			datesLoading = false;
+		}
+	}
+
+	function toggleCalendar() {
+		showCalendar = !showCalendar;
+		if (showCalendar) {
+			void loadPlayedDates();
+		}
+	}
+
+	function openDay(date: string) {
+		if (!played.has(date)) {
+			return;
+		}
+		onOpenDay(date);
+		close();
 	}
 
 	function close() {
@@ -228,7 +321,7 @@
 									bind:value={feedbackBody}
 									maxlength="4000"
 									placeholder="Your feedback for the developer..."
-									class="mt-2 max-h-48 field-sizing-content min-h-24 w-full resize-none rounded-xl border border-gray-200 bg-transparent px-3 py-3 text-base text-dark placeholder:text-gray-400 focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:text-light dark:focus:border-gray-500"
+									class="mt-2 field-sizing-content max-h-48 min-h-24 w-full resize-none rounded-xl border border-gray-200 bg-transparent px-3 py-3 text-base text-dark placeholder:text-gray-400 focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:text-light dark:focus:border-gray-500"
 								></textarea>
 							</label>
 							<button
@@ -346,6 +439,19 @@
 										</button>
 									</Tooltip>
 								</div>
+								<Tooltip text="Calendar" align="end" side="bottom">
+									<button
+										type="button"
+										class="flex cursor-pointer items-center rounded-full border border-gray-200 px-2.5 py-1 dark:border-gray-700 {showCalendar
+											? 'bg-dark text-light dark:bg-light dark:text-dark'
+											: 'text-gray-400'}"
+										aria-label="Calendar"
+										aria-pressed={showCalendar}
+										on:click={toggleCalendar}
+									>
+										<svelte:component this={CalendarBlank} size={14} weight="bold" />
+									</button>
+								</Tooltip>
 								<button
 									type="button"
 									class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
@@ -387,9 +493,59 @@
 							</div>
 
 							<div class="mt-8">
-								{#key scope}
-									<Histogram counts={activeCounts} highlight={score} variant="columns" />
-								{/key}
+								{#if showCalendar}
+									<div class="flex items-center justify-between">
+										<button
+											type="button"
+											class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+											aria-label="Previous month"
+											on:click={() => shiftMonth(-1)}
+										>
+											<svelte:component this={CaretLeft} size={16} weight="bold" />
+										</button>
+										<p class="text-sm text-dark dark:text-light">
+											{visibleMonth.toLocaleDateString('en-US', {
+												month: 'long',
+												year: 'numeric'
+											})}
+										</p>
+										<button
+											type="button"
+											class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+											aria-label="Next month"
+											on:click={() => shiftMonth(1)}
+										>
+											<svelte:component this={CaretRight} size={16} weight="bold" />
+										</button>
+									</div>
+									<div class="mt-3 grid grid-cols-7 gap-1 text-center">
+										{#each WEEKDAYS as weekday, index (index)}
+											<span class="text-xs text-gray-400">{weekday}</span>
+										{/each}
+										{#each monthCells as cell}
+											{#if cell && played.has(cell.date)}
+												<button
+													type="button"
+													class="flex h-9 cursor-pointer items-center justify-center rounded-md bg-gray-200 text-sm text-dark dark:bg-neutral-700 dark:text-light"
+													aria-label="Open {cell.date}"
+													on:click={() => openDay(cell.date)}
+												>
+													{cell.day}
+												</button>
+											{:else if cell}
+												<span class="flex h-9 items-center justify-center text-sm text-gray-400">
+													{cell.day}
+												</span>
+											{:else}
+												<span class="h-9"></span>
+											{/if}
+										{/each}
+									</div>
+								{:else}
+									{#key scope}
+										<Histogram counts={activeCounts} highlight={score} variant="columns" />
+									{/key}
+								{/if}
 							</div>
 
 							<div class="mt-6 text-center text-sm text-gray-400">

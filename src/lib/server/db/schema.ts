@@ -102,6 +102,7 @@ export const plays = pgTable(
 			.references(() => players.id),
 		score: integer('score').notNull(),
 		timeRemainingMs: integer('time_remaining_ms').notNull(),
+		shared: boolean('shared').notNull().default(false),
 		submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
 		client: jsonb('client').$type<PlayClient | null>()
 	},
