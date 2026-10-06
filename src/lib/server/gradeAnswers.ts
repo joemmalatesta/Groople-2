@@ -31,6 +31,75 @@ type AnswerSlot = {
 };
 
 /**
+ * One illustration of each rule. None of these are taken from played answers.
+ * Passed once in state so the shots are not copied onto each question.
+ */
+const examples = {
+	pass: [
+		{
+			category: 'Foods',
+			response: 'Pear',
+			note: 'The answer is itself an example of the category.'
+		},
+		{
+			category: 'Vegetables',
+			response: 'Green beans',
+			note: 'The first word is part of the real name.'
+		},
+		{
+			category: 'Vegetables',
+			response: 'Brocoli',
+			note: 'A light misspelling of a real answer still passes.'
+		},
+		{
+			category: 'Books',
+			response: 'Stone Junction',
+			note: 'A specific title or name passes even when it is unfamiliar.'
+		},
+		{
+			category: 'Things you are afraid of',
+			response: 'Thunder',
+			note: 'A loose category. A sincere specific example passes.'
+		}
+	],
+	fail: [
+		{
+			category: 'Foods',
+			response: 'A pear',
+			for_letter: 'A',
+			note: 'A, an, and the do not count. The food is pear, which does not start with A.'
+		},
+		{
+			category: 'Ice cream flavors',
+			response: 'Pear',
+			note: 'A nearby thing is not enough. A fruit is not a flavor.'
+		},
+		{
+			category: 'Vegetables',
+			response: 'Giant carrot',
+			note: 'A word added only to hit the letter. The vegetable is carrot.'
+		},
+		{
+			category: 'Movies',
+			response: 'Good',
+			note: 'A generic word is not an example.'
+		}
+	]
+};
+
+const criteria = {
+	true: {
+		what: 'The response is itself an example of the category. A light misspelling still passes. A specific title or name still passes when it is unfamiliar. On a loose category, a sincere specific example passes. A first word that is part of the real name passes.',
+		like: '`examples.pass`'
+	},
+	false: {
+		what: 'A different or neighboring kind of thing, a generic word, or a word added only so the answer starts with the letter. A, an, and the never count as that word. Each fail example illustrates one of these, and its for_letter applies only to that example.',
+		not_for: 'Do not fail a specific title or name only because it is unfamiliar, or because of a light misspelling.',
+		like: '`examples.fail`'
+	}
+};
+
+/**
  * Grade Scattergories answers: exact letter matching in code, category/fairness
  * judgments from TypeSafe Noul questions in one batched request.
  */
@@ -68,12 +137,12 @@ export async function gradeAnswers(params: {
 			response: slot.response
 		};
 		questions[id] = noul(
-			`Is \`answers.${id}.response\` a valid Scattergories answer for category \`answers.${id}.category\`?`,
 			{
-				true: 'A real, reasonably well-known example of the category that a typical group of players would accept.',
-				false:
-					'It does not belong in the category, is made-up or random, is too vague, or only works because a descriptive word was added to force a match with `required_letter`.'
-			}
+				question: `Is \`answers.${id}.response\` an example of \`answers.${id}.category\`?`,
+				focus:
+					'Apply the standard in `examples`. Those shots show the boundary. This response does not have to resemble their categories. It already starts with `required_letter`.'
+			},
+			criteria
 		);
 	}
 
@@ -83,12 +152,7 @@ export async function gradeAnswers(params: {
 		state: {
 			game: 'Scattergories',
 			required_letter: params.letter.toUpperCase(),
-			rules: [
-				'The player already passed a letter-prefix check in code; judge category fit and fairness only.',
-				'Reject vague answers and answers that seem made up or random.',
-				'Reject answers that unjustly use extra descriptive words to cheat.',
-				'Be strict but fair.'
-			],
+			examples,
 			answers: answersState
 		},
 		questions
