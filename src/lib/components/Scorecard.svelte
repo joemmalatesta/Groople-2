@@ -28,6 +28,7 @@
 	export let player: PlayerProfile | null;
 	export let scoreboard: ScoreboardStats | null;
 	export let timezone: string;
+	export let puzzleDate = '';
 	export let dateLabel = '';
 	export let letter = '';
 	export let correct: boolean[] = [];
@@ -85,6 +86,20 @@
 			await navigator.clipboard.writeText(text);
 			copied = true;
 			shareIcon?.play();
+			if (playerId && puzzleDate) {
+				const body = new FormData();
+				body.set('player_id', playerId);
+				body.set('date', puzzleDate);
+				void fetch('?/share', {
+					method: 'POST',
+					body,
+					keepalive: true,
+					headers: {
+						accept: 'application/json',
+						'x-sveltekit-action': 'true'
+					}
+				});
+			}
 			window.setTimeout(() => {
 				copied = false;
 			}, 1700);

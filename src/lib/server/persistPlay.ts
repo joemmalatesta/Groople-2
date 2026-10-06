@@ -54,6 +54,13 @@ export async function getPlayForPlayerDate(
 	};
 }
 
+export async function recordPlayShare(playerId: string, date: string): Promise<void> {
+	await db
+		.update(plays)
+		.set({ shared: true })
+		.where(and(eq(plays.playerId, playerId), eq(plays.date, date)));
+}
+
 export async function persistPlay(params: {
 	puzzle: DailyPuzzle;
 	playerId: string;
