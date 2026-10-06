@@ -1,6 +1,7 @@
 import { noul, TypeSafeClient, type Fetch, type NoulQuestion } from '@typesafe-ai/sdk';
 import { env } from '$env/dynamic/private';
 import { startsWithRequiredLetter } from './letterCheck';
+import { criteria, examples, gradeFocus, standard } from './gradePrompt';
 
 export { startsWithRequiredLetter };
 
@@ -68,12 +69,11 @@ export async function gradeAnswers(params: {
 			response: slot.response
 		};
 		questions[id] = noul(
-			`Is \`answers.${id}.response\` a valid Scattergories answer for category \`answers.${id}.category\`?`,
 			{
-				true: 'A real, reasonably well-known example of the category that a typical group of players would accept.',
-				false:
-					'It does not belong in the category, is made-up or random, is too vague, or only works because a descriptive word was added to force a match with `required_letter`.'
-			}
+				question: `Is \`answers.${id}.response\` an example of \`answers.${id}.category\`?`,
+				focus: gradeFocus
+			},
+			criteria
 		);
 	}
 
@@ -83,12 +83,8 @@ export async function gradeAnswers(params: {
 		state: {
 			game: 'Scattergories',
 			required_letter: params.letter.toUpperCase(),
-			rules: [
-				'The player already passed a letter-prefix check in code; judge category fit and fairness only.',
-				'Reject vague answers and answers that seem made up or random.',
-				'Reject answers that unjustly use extra descriptive words to cheat.',
-				'Be strict but fair.'
-			],
+			standard,
+			examples,
 			answers: answersState
 		},
 		questions
