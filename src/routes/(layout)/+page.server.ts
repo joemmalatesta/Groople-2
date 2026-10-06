@@ -2,7 +2,7 @@ import type { Actions } from './$types';
 import { gradeAnswers } from '$lib/server/gradeAnswers';
 import { loadOrCreatePuzzle } from '$lib/server/loadOrCreatePuzzle';
 import { isValidTimeZone, localDateInTimezone } from '$lib/server/localDate';
-import { getPlayForPlayerDate, persistPlay } from '$lib/server/persistPlay';
+import { getPlayForPlayerDate, persistPlay, recordPlayShare } from '$lib/server/persistPlay';
 import {
 	findPlayerByMetadata,
 	getPlayer,
@@ -141,6 +141,18 @@ export const actions: Actions = {
 			const message = error instanceof Error ? error.message : 'Could not save feedback';
 			return { success: false, error: message };
 		}
+	},
+
+	share: async ({ request }) => {
+		const formData = await request.formData();
+		const playerId = parsePlayerId(formData.get('player_id'));
+		const date = formData.get('date');
+		if (!playerId || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			return { success: false };
+		}
+
+		await recordPlayShare(playerId, date);
+		return { success: true };
 	},
 
 	restore: async ({ request }) => {
