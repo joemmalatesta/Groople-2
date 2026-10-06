@@ -355,6 +355,7 @@
 				player={playerProfile}
 				{scoreboard}
 				timezone={browserTimeZone()}
+				puzzleDate={data.date}
 				{dateLabel}
 				{letter}
 				correct={responseArray}
