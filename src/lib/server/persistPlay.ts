@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { answers, plays } from '$lib/server/db/schema';
 import type { DailyPuzzle } from '$lib/server/loadOrCreatePuzzle';
@@ -52,6 +52,43 @@ export async function getPlayForPlayerDate(
 		score: play.score,
 		timeRemainingMs: play.timeRemainingMs
 	};
+}
+
+function playDate(value: unknown): string | null {
+	if (typeof value === 'string') {
+		const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+		return match?.[1] ?? null;
+	}
+
+	if (value instanceof Date && !Number.isNaN(value.getTime())) {
+		return value.toISOString().slice(0, 10);
+	}
+
+	return null;
+}
+
+export async function listPlayedDates(playerId: string): Promise<string[]> {
+	const rows = await db
+		.select({ date: plays.date })
+		.from(plays)
+		.where(eq(plays.playerId, playerId))
+		.orderBy(asc(plays.date));
+
+	const dates: string[] = [];
+	for (const row of rows) {
+		const date = playDate(row.date);
+		if (date) {
+			dates.push(date);
+		}
+	}
+	return dates;
+}
+
+export async function recordPlayShare(playerId: string, date: string): Promise<void> {
+	await db
+		.update(plays)
+		.set({ shared: true })
+		.where(and(eq(plays.playerId, playerId), eq(plays.date, date)));
 }
 
 export async function persistPlay(params: {

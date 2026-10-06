@@ -41,7 +41,7 @@ function pickLetter(): string {
 	return letter;
 }
 
-async function getReadyPuzzle(date: string): Promise<DailyPuzzle | null> {
+export async function getReadyPuzzle(date: string): Promise<DailyPuzzle | null> {
 	const puzzleRows = await db
 		.select()
 		.from(dailyPuzzles)
