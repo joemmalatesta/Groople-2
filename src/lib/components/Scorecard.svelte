@@ -54,7 +54,10 @@
 	let cardsSeen = 0;
 	let skippedIds: string[] = [];
 	let remaining = 0;
+	let judgeTotal = 0;
 	let voting = false;
+	let visitStarted = false;
+	let awaitingCard = false;
 	let shareIcon: LinkPinch;
 	let formElement: HTMLFormElement;
 
@@ -88,18 +91,28 @@
 		feedbackBody = '';
 		feedbackError = '';
 		submitting = false;
-		card = null;
-		cardsSeen = 0;
-		skippedIds = [];
-		remaining = 0;
-		voting = false;
-		showingCard = shouldJudge;
-		if (shouldJudge) {
-			void loadOffer();
+		if (!shouldJudge) {
+			showingCard = false;
+			return;
 		}
+		if (card || awaitingCard) {
+			showingCard = true;
+			return;
+		}
+		if (visitStarted) {
+			showingCard = false;
+			return;
+		}
+		visitStarted = true;
+		awaitingCard = true;
+		showingCard = true;
+		void loadOffer();
 	}
 
 	$: syncModal(open, judge);
+	$: if (open && visitStarted) {
+		showingCard = Boolean(card) || awaitingCard;
+	}
 
 	$: localPersonal = browser ? readPersonalHistogram() : emptyHistogram();
 	$: personal = includeScore(
@@ -163,6 +176,12 @@
 		showingCard = false;
 	}
 
+	function noteTotal(count: number) {
+		if (judgeTotal === 0 && count > 0) {
+			judgeTotal = count;
+		}
+	}
+
 	function readCard(data: Record<string, unknown>): RebuttalCard | null {
 		const value = data.card;
 		if (!value || typeof value !== 'object') {
@@ -221,28 +240,30 @@
 	}
 
 	function showOffer(offer: { card: RebuttalCard | null; remaining: number }, previousId: string) {
-		if (!open || !offer.card || offer.card.id === previousId || cardsSeen >= MAX_CARDS_PER_VISIT) {
+		if (!offer.card || offer.card.id === previousId || cardsSeen >= MAX_CARDS_PER_VISIT) {
 			finishJudging();
 			return;
 		}
 		card = offer.card;
 		remaining = offer.remaining;
+		noteTotal(offer.remaining);
 	}
 
 	async function loadOffer() {
+		awaitingCard = true;
 		try {
-			const offer = await requestCard(0);
-			if (!open) {
-				return;
-			}
-			if (!offer.card) {
+			const offer = await requestCard(cardsSeen);
+			if (!offer.card || cardsSeen >= MAX_CARDS_PER_VISIT) {
 				finishJudging();
 				return;
 			}
 			card = offer.card;
 			remaining = offer.remaining;
+			noteTotal(offer.remaining);
 		} catch {
 			finishJudging();
+		} finally {
+			awaitingCard = false;
 		}
 	}
 
@@ -251,7 +272,9 @@
 			return;
 		}
 		voting = true;
+		awaitingCard = true;
 		const currentId = card.id;
+		card = null;
 		const seen = cardsSeen + 1;
 		try {
 			const offer = await requestCard(seen, { id: currentId, vote: choice });
@@ -261,6 +284,7 @@
 			finishJudging();
 		} finally {
 			voting = false;
+			awaitingCard = false;
 		}
 	}
 
@@ -269,8 +293,10 @@
 			return;
 		}
 		voting = true;
+		awaitingCard = true;
 		const currentId = card.id;
 		skippedIds = [...skippedIds, currentId];
+		card = null;
 		const seen = cardsSeen + 1;
 		try {
 			const offer = await requestCard(seen);
@@ -280,11 +306,12 @@
 			finishJudging();
 		} finally {
 			voting = false;
+			awaitingCard = false;
 		}
 	}
 
 	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && open && !showingCard) {
+		if (event.key === 'Escape' && open) {
 			close();
 		}
 	}
@@ -301,42 +328,59 @@
 			type="button"
 			class="absolute inset-0 bg-dark/50 dark:bg-black/60"
 			aria-label="Close scores"
-			on:click={() => {
-				if (!showingCard) {
-					close();
-				}
-			}}
+			on:click={close}
 		></button>
 		<div
-			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
+			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-md overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
 			in:scale={{ duration: 220, start: 0.94, easing: cubicOut }}
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby={dialogLabel}
 		>
 			{#if showingCard}
-				<div class="col-start-1 row-start-1 px-6 py-7">
+				<div
+					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] w-full min-w-0 overflow-x-clip overflow-y-auto px-6 py-7"
+				>
 					<div class="flex items-center justify-between">
-						<p class="text-sm text-gray-400">
-							{remaining > 0 ? `${remaining} left` : ''}
+						<p class="font-inter text-sm text-gray-400">
+							{judgeTotal > 0 ? `${cardsSeen + 1} of ${judgeTotal}` : ''}
 						</p>
-						<button
-							type="button"
-							class="cursor-pointer text-sm text-gray-400 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-							disabled={!card || voting}
-							on:click={skipCard}
-						>
-							Skip
-						</button>
+						<div class="flex items-center gap-3">
+							<button
+								type="button"
+								class="cursor-pointer font-inter text-sm text-gray-400 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+								disabled={!card || voting}
+								on:click={skipCard}
+							>
+								Skip
+							</button>
+							<button
+								type="button"
+								class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+								aria-label="Close"
+								on:click={close}
+							>
+								<svelte:component this={X} size={18} weight="bold" />
+							</button>
+						</div>
 					</div>
 					{#if card}
-						<h2
-							id="rebuttal-card-title"
-							class="mt-10 text-center font-inter text-lg text-dark dark:text-light"
-						>
-							{card.category}
-						</h2>
-						<p class="mt-8 text-center text-4xl text-dark dark:text-light">{card.answer}</p>
+						<div id="rebuttal-card-title" class="mt-8 space-y-2 text-center">
+							<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+								<span class="shrink-0 font-inter text-sm text-gray-400">Does</span>
+								<span
+									class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
+									>{card.answer}</span
+								>
+							</p>
+							<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+								<span class="shrink-0 font-inter text-sm text-gray-400">count for</span>
+								<span
+									class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
+									>{card.category}</span
+								>
+							</p>
+						</div>
 						<div class="mt-10 grid grid-cols-2 gap-3">
 							<button
 								type="button"
@@ -363,7 +407,7 @@
 			{:else}
 				{#key view}
 				<div
-					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] overflow-y-auto px-6 py-7"
+					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] w-full min-w-0 overflow-x-clip overflow-y-auto px-6 py-7"
 					in:fly|local={{
 						x: switching ? direction * 32 : 0,
 						duration: switching ? 240 : 0,
@@ -609,20 +653,22 @@
 								</button>
 							</div>
 
-							<div class="mt-8">
+							<div class="mt-8 overflow-x-clip">
 								{#key scope}
 									<Histogram counts={activeCounts} highlight={score} variant="columns" />
 								{/key}
 							</div>
 
-							<div class="mt-6 text-center text-sm text-gray-400">
+							<div
+								class="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-gray-400"
+							>
 								{#if dateLabel}
-									{dateLabel}<span
-										class="mx-2 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle"
-									></span>
-								{/if}Play again tomorrow<span
-									class="mx-2 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle"
-								></span><button
+									<span>{dateLabel}</span>
+									<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+								{/if}
+								<span>Play again tomorrow</span>
+								<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+								<button
 									type="button"
 									class="cursor-pointer text-gray-400 underline underline-offset-2 transition-all hover:underline-offset-4"
 									on:click={() => showView('feedback', 1)}

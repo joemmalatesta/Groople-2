@@ -40,52 +40,63 @@
 </script>
 
 {#if answersSubmitted}
-	<div
-		class="mb-1.5 flex flex-col gap-0.5 px-3 py-2 md:flex-row md:items-center md:gap-4 {rowClass}"
-	>
-		<div class="flex min-w-0 items-baseline gap-2 md:flex-1 {textClass}">
-			<span class="min-w-6 shrink-0 text-base font-medium text-dark dark:text-light">{index}.</span>
-			<span class="text-base font-medium wrap-break-word text-dark dark:text-light">{category}</span
+	<div class="mb-1.5 flex items-center gap-3 px-3 py-2 {rowClass}">
+		<div class="flex min-w-0 flex-1 flex-col gap-0.5 md:flex-row md:items-center md:gap-4">
+			<div class="flex min-w-0 items-baseline gap-2 md:flex-1 {textClass}">
+				<span class="min-w-6 shrink-0 text-base font-medium text-dark dark:text-light">{index}.</span>
+				<span class="text-base font-medium wrap-break-word text-dark dark:text-light">{category}</span
+				>
+			</div>
+			<div class="min-w-0 flex-1 pl-8 md:pl-0">
+				{#if reveal}
+					<p
+						class="text-base text-dark wrap-break-word dark:text-light {textClass} {hasAnswer
+							? ''
+							: 'italic'}"
+						in:fade={{ delay: fadeDelay, duration: 280 }}
+					>
+						{displayAnswer}
+					</p>
+				{:else}
+					<p
+						class="text-base text-dark wrap-break-word dark:text-light {textClass} {hasAnswer
+							? ''
+							: 'italic'}"
+					>
+						{displayAnswer}
+					</p>
+				{/if}
+			</div>
+		</div>
+		{#if canRebuttal && rebuttalSent}
+			<span
+				class="inline-flex shrink-0 items-center gap-2 text-xs font-medium text-gray-500 tabular-nums dark:text-gray-300"
+				aria-label="{rebuttalYes} yes, {rebuttalNo} no"
 			>
-		</div>
-		<div class="flex min-w-0 flex-1 items-center gap-3 pl-8 md:pl-0">
-			{#if reveal}
-				<p
-					class="min-w-0 text-base text-dark dark:text-light {textClass} {hasAnswer ? '' : 'italic'}"
-					in:fade={{ delay: fadeDelay, duration: 280 }}
-				>
-					{displayAnswer}
-				</p>
-			{:else}
-				<p class="min-w-0 text-base text-dark dark:text-light {textClass} {hasAnswer ? '' : 'italic'}">
-					{displayAnswer}
-				</p>
-			{/if}
-			{#if canRebuttal && rebuttalSent}
-				<span
-					class="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-green-600/35 via-transparent to-red-600/35 px-2.5 py-0.5 text-xs font-medium text-gray-500 tabular-nums dark:from-green-400/35 dark:to-red-400/35 dark:text-gray-400"
-					aria-label="{rebuttalYes} yes, {rebuttalNo} no"
-				>
-					<span>{rebuttalYes}</span>
-					<span class="text-gray-400 dark:text-gray-500">–</span>
-					<span>{rebuttalNo}</span>
+				<span class="inline-flex items-center gap-1">
+					<span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+					{rebuttalYes}
 				</span>
-			{:else if canRebuttal && rebuttalOpen}
-				<button
-					type="button"
-					class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-dark/20 px-2.5 py-0.5 text-xs font-medium text-dark transition-colors hover:bg-dark/5 disabled:cursor-default disabled:opacity-50 dark:border-light/25 dark:text-light dark:hover:bg-light/10"
-					disabled={rebuttalBusy}
-					on:click={send}
-				>
-					Rebuttal
-					<ArrowClockwise
-						size={14}
-						weight="bold"
-						class="transition-transform duration-500 ease-out {rebuttalBusy ? 'rotate-180' : ''}"
-					/>
-				</button>
-			{/if}
-		</div>
+				<span class="inline-flex items-center gap-1">
+					<span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+					{rebuttalNo}
+				</span>
+			</span>
+		{:else if canRebuttal && rebuttalOpen}
+			<button
+				type="button"
+				class="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-dark/20 px-2.5 py-0.5 text-xs font-medium text-dark transition-colors hover:bg-dark/5 disabled:cursor-default disabled:opacity-50 dark:border-light/25 dark:text-light dark:hover:bg-light/10"
+				disabled={rebuttalBusy}
+				on:click={send}
+			>
+				Rebuttal
+				<ArrowClockwise
+					size={14}
+					weight="bold"
+					class="transition-transform duration-500 ease-out {rebuttalBusy ? 'rotate-180' : ''}"
+				/>
+			</button>
+		{/if}
 	</div>
 {:else}
 	<div class="flex flex-col justify-between py-1 md:flex-row md:items-center md:gap-4">

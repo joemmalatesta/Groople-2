@@ -4,7 +4,7 @@ export const REBUTTAL_YES_CEILING = 0.6;
 /** At or above this line the wording is hidden and gets no rebuttal. */
 export const PROFANE_HIDE_AT = 0.6;
 export const MAX_REBUTTALS_PER_PLAY = 2;
-export const MAX_CARDS_PER_VISIT = 10;
+export const MAX_CARDS_PER_VISIT = 3;
 
 export type RebuttalStatus = 'open' | 'yes' | 'no';
 export type RebuttalVoteSide = 'yes' | 'no';
