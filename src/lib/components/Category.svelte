@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import ArrowClockwise from 'phosphor-svelte/lib/ArrowClockwise';
 
 	export let index: number;
 	export let category: string;
@@ -12,6 +13,13 @@
 	export let initialValue = '';
 	export let locked = false;
 	export let reveal = true;
+	export let canRebuttal = false;
+	export let rebuttalSent = false;
+	export let rebuttalBusy = false;
+	export let rebuttalOpen = true;
+	export let rebuttalYes = 0;
+	export let rebuttalNo = 0;
+	export let onRebuttal: () => Promise<boolean> | boolean = () => false;
 
 	let inputValue = initialValue;
 
@@ -20,36 +28,64 @@
 	$: isCorrect = valid === 'yes';
 	$: startsWithLetter = inputValue.toLowerCase().startsWith(letter.toLowerCase());
 	$: fadeDelay = (index - 1) * 50;
-	$: lockinClass = isCorrect ? 'rounded-md bg-neutral-200 dark:bg-neutral-800' : 'opacity-45';
+	$: rowClass = isCorrect ? 'rounded-md bg-neutral-200 dark:bg-neutral-800' : '';
+	$: textClass = isCorrect ? '' : 'opacity-45';
+
+	async function send() {
+		if (rebuttalSent || rebuttalBusy || !rebuttalOpen) {
+			return;
+		}
+		await onRebuttal();
+	}
 </script>
 
 {#if answersSubmitted}
 	<div
-		class="mb-1.5 flex flex-col gap-0.5 px-3 py-2 md:flex-row md:items-baseline md:gap-4 {lockinClass}"
+		class="mb-1.5 flex flex-col gap-0.5 px-3 py-2 md:flex-row md:items-center md:gap-4 {rowClass}"
 	>
-		<div class="flex min-w-0 items-baseline gap-2 md:flex-1">
+		<div class="flex min-w-0 items-baseline gap-2 md:flex-1 {textClass}">
 			<span class="min-w-6 shrink-0 text-base font-medium text-dark dark:text-light">{index}.</span>
 			<span class="text-base font-medium wrap-break-word text-dark dark:text-light">{category}</span
 			>
 		</div>
-		{#if reveal}
-			<p
-				class="pl-8 text-base text-dark md:w-7/12 md:pl-0 dark:text-light {hasAnswer
-					? ''
-					: 'italic'}"
-				in:fade={{ delay: fadeDelay, duration: 280 }}
-			>
-				{displayAnswer}
-			</p>
-		{:else}
-			<p
-				class="pl-8 text-base text-dark md:w-7/12 md:pl-0 dark:text-light {hasAnswer
-					? ''
-					: 'italic'}"
-			>
-				{displayAnswer}
-			</p>
-		{/if}
+		<div class="flex min-w-0 flex-1 items-center gap-3 pl-8 md:pl-0">
+			{#if reveal}
+				<p
+					class="min-w-0 text-base text-dark dark:text-light {textClass} {hasAnswer ? '' : 'italic'}"
+					in:fade={{ delay: fadeDelay, duration: 280 }}
+				>
+					{displayAnswer}
+				</p>
+			{:else}
+				<p class="min-w-0 text-base text-dark dark:text-light {textClass} {hasAnswer ? '' : 'italic'}">
+					{displayAnswer}
+				</p>
+			{/if}
+			{#if canRebuttal && rebuttalSent}
+				<span
+					class="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-green-600/35 via-transparent to-red-600/35 px-2.5 py-0.5 text-xs font-medium text-gray-500 tabular-nums dark:from-green-400/35 dark:to-red-400/35 dark:text-gray-400"
+					aria-label="{rebuttalYes} yes, {rebuttalNo} no"
+				>
+					<span>{rebuttalYes}</span>
+					<span class="text-gray-400 dark:text-gray-500">–</span>
+					<span>{rebuttalNo}</span>
+				</span>
+			{:else if canRebuttal && rebuttalOpen}
+				<button
+					type="button"
+					class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-dark/20 px-2.5 py-0.5 text-xs font-medium text-dark transition-colors hover:bg-dark/5 disabled:cursor-default disabled:opacity-50 dark:border-light/25 dark:text-light dark:hover:bg-light/10"
+					disabled={rebuttalBusy}
+					on:click={send}
+				>
+					Rebuttal
+					<ArrowClockwise
+						size={14}
+						weight="bold"
+						class="transition-transform duration-500 ease-out {rebuttalBusy ? 'rotate-180' : ''}"
+					/>
+				</button>
+			{/if}
+		</div>
 	</div>
 {:else}
 	<div class="flex flex-col justify-between py-1 md:flex-row md:items-center md:gap-4">

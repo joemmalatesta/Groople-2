@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { deserialize, enhance } from '$app/forms';
 	import { fade, fly, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import User from 'phosphor-svelte/lib/User';
@@ -21,6 +21,7 @@
 	import { nameInitials, writePlayerName } from '$lib/playerName';
 	import { shareText } from '$lib/shareResult';
 	import { browser } from '$app/environment';
+	import { MAX_CARDS_PER_VISIT, type RebuttalCard } from '$lib/rebuttalRules';
 
 	export let open = false;
 	export let playerId: string;
@@ -34,6 +35,7 @@
 	export let correct: boolean[] = [];
 	export let onClose: () => void = () => {};
 	export let onSave: (player: PlayerProfile) => void = () => {};
+	export let judge = false;
 
 	let scope: 'you' | 'world' = 'world';
 	let view: 'scores' | 'feedback' | 'thanks' = 'scores';
@@ -47,6 +49,10 @@
 	let submitting = false;
 	let wasOpen = false;
 	let copied = false;
+	let showingCard = false;
+	let card: RebuttalCard | null = null;
+	let cardsSeen = 0;
+	let voting = false;
 	let shareIcon: LinkPinch;
 	let formElement: HTMLFormElement;
 
@@ -57,8 +63,13 @@
 		}
 	}
 
-	$: dialogLabel =
-		view === 'scores' ? 'scoreboard-title' : view === 'thanks' ? 'thanks-title' : 'feedback-title';
+	$: dialogLabel = showingCard
+		? 'rebuttal-card-title'
+		: view === 'scores'
+			? 'scoreboard-title'
+			: view === 'thanks'
+				? 'thanks-title'
+				: 'feedback-title';
 
 	$: if (open && !wasOpen) {
 		view = 'scores';
@@ -67,6 +78,13 @@
 		feedbackBody = '';
 		feedbackError = '';
 		submitting = false;
+		card = null;
+		cardsSeen = 0;
+		voting = false;
+		showingCard = judge;
+		if (judge) {
+			void loadOffer();
+		}
 	}
 	$: wasOpen = open;
 
@@ -126,6 +144,95 @@
 		onClose();
 	}
 
+	function readCard(data: Record<string, unknown>): RebuttalCard | null {
+		const value = data.card;
+		if (!value || typeof value !== 'object') {
+			return null;
+		}
+		const cardValue = value as Record<string, unknown>;
+		if (
+			typeof cardValue.id !== 'string' ||
+			typeof cardValue.letter !== 'string' ||
+			typeof cardValue.category !== 'string' ||
+			typeof cardValue.answer !== 'string'
+		) {
+			return null;
+		}
+		return {
+			id: cardValue.id,
+			letter: cardValue.letter,
+			category: cardValue.category,
+			answer: cardValue.answer
+		};
+	}
+
+	async function requestCard(
+		seen: number,
+		choice?: { id: string; vote: 'yes' | 'no' }
+	): Promise<RebuttalCard | null> {
+		const body = new FormData();
+		body.set('player_id', playerId);
+		body.set('tz', timezone);
+		body.set('seen', String(seen));
+		if (choice) {
+			body.set('rebuttal_id', choice.id);
+			body.set('vote', choice.vote);
+		}
+		const response = await fetch('?/rebuttal', {
+			method: 'POST',
+			body,
+			headers: {
+				accept: 'application/json',
+				'x-sveltekit-action': 'true'
+			}
+		});
+		const result = deserialize(await response.text());
+		if (result.type !== 'success' || !result.data || typeof result.data !== 'object') {
+			return null;
+		}
+		return readCard(result.data as Record<string, unknown>);
+	}
+
+	async function loadOffer() {
+		try {
+			const next = await requestCard(0);
+			if (!open) {
+				return;
+			}
+			if (!next) {
+				showingCard = false;
+				return;
+			}
+			card = next;
+		} catch {
+			showingCard = false;
+		}
+	}
+
+	async function submitVote(choice: 'yes' | 'no') {
+		if (!card || voting) {
+			return;
+		}
+		voting = true;
+		const currentId = card.id;
+		const seen = cardsSeen + 1;
+		try {
+			const next = await requestCard(seen, { id: currentId, vote: choice });
+			cardsSeen = seen;
+			if (!next || next.id === currentId || seen >= MAX_CARDS_PER_VISIT) {
+				card = null;
+				showingCard = false;
+				return;
+			}
+			card = next;
+		} catch {
+			card = null;
+			showingCard = false;
+		} finally {
+			voting = false;
+		}
+	}
+
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && open) {
 			close();
@@ -153,7 +260,55 @@
 			aria-modal="true"
 			aria-labelledby={dialogLabel}
 		>
-			{#key view}
+			{#if showingCard}
+				<div class="col-start-1 row-start-1 px-6 py-7">
+					<div class="flex justify-end">
+						<button
+							type="button"
+							class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+							aria-label="Close"
+							on:click={close}
+						>
+							<svelte:component this={X} size={18} weight="bold" />
+						</button>
+					</div>
+					{#if card}
+						<p class="text-center text-sm tracking-widest text-gray-400 uppercase">Rebuttal</p>
+						<p class="mt-6 text-center text-sm tracking-widest text-gray-400 uppercase">
+							{card.letter}
+						</p>
+						<h2
+							id="rebuttal-card-title"
+							class="mt-2 text-center font-inter text-lg text-dark dark:text-light"
+						>
+							{card.category}
+						</h2>
+						<p class="mt-8 text-center text-4xl text-dark dark:text-light">{card.answer}</p>
+						<div class="mt-10 grid grid-cols-2 gap-3">
+							<button
+								type="button"
+								class="cursor-pointer rounded-md border border-gray-300 p-3 text-base text-dark disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-light"
+								disabled={voting}
+								on:click={() => submitVote('no')}
+							>
+								No
+							</button>
+							<button
+								type="button"
+								class="cursor-pointer rounded-md bg-dark p-3 text-base text-light disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
+								disabled={voting}
+								on:click={() => submitVote('yes')}
+							>
+								Yes
+							</button>
+						</div>
+					{:else}
+						<h2 id="rebuttal-card-title" class="sr-only">Answer</h2>
+						<div class="h-48"></div>
+					{/if}
+				</div>
+			{:else}
+				{#key view}
 				<div
 					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] overflow-y-auto px-6 py-7"
 					in:fly|local={{
@@ -431,7 +586,8 @@
 						</form>
 					{/if}
 				</div>
-			{/key}
+				{/key}
+			{/if}
 		</div>
 	</div>
 {/if}
