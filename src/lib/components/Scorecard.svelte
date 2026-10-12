@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { deserialize, enhance } from '$app/forms';
 	import { fade, fly, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import User from 'phosphor-svelte/lib/User';
@@ -21,6 +21,7 @@
 	import { nameInitials, writePlayerName } from '$lib/playerName';
 	import { shareText } from '$lib/shareResult';
 	import { browser } from '$app/environment';
+	import { MAX_CARDS_PER_VISIT, type RebuttalCard } from '$lib/rebuttalRules';
 
 	export let open = false;
 	export let playerId: string;
@@ -34,6 +35,7 @@
 	export let correct: boolean[] = [];
 	export let onClose: () => void = () => {};
 	export let onSave: (player: PlayerProfile) => void = () => {};
+	export let judge = false;
 
 	let scope: 'you' | 'world' = 'world';
 	let view: 'scores' | 'feedback' | 'thanks' = 'scores';
@@ -45,8 +47,17 @@
 	let errorMessage = '';
 	let feedbackError = '';
 	let submitting = false;
-	let wasOpen = false;
+	let modalWasOpen = false;
 	let copied = false;
+	let showingCard = false;
+	let card: RebuttalCard | null = null;
+	let cardsSeen = 0;
+	let skippedIds: string[] = [];
+	let remaining = 0;
+	let judgeTotal = 0;
+	let voting = false;
+	let visitStarted = false;
+	let awaitingCard = false;
 	let shareIcon: LinkPinch;
 	let formElement: HTMLFormElement;
 
@@ -57,18 +68,51 @@
 		}
 	}
 
-	$: dialogLabel =
-		view === 'scores' ? 'scoreboard-title' : view === 'thanks' ? 'thanks-title' : 'feedback-title';
+	$: dialogLabel = showingCard
+		? 'rebuttal-card-title'
+		: view === 'scores'
+			? 'scoreboard-title'
+			: view === 'thanks'
+				? 'thanks-title'
+				: 'feedback-title';
 
-	$: if (open && !wasOpen) {
+	function syncModal(isOpen: boolean, shouldJudge: boolean) {
+		if (isOpen === modalWasOpen) {
+			return;
+		}
+		const justOpened = isOpen && !modalWasOpen;
+		modalWasOpen = isOpen;
+		if (!justOpened) {
+			return;
+		}
 		view = 'scores';
 		direction = 1;
 		switching = false;
 		feedbackBody = '';
 		feedbackError = '';
 		submitting = false;
+		if (!shouldJudge) {
+			showingCard = false;
+			return;
+		}
+		if (card || awaitingCard) {
+			showingCard = true;
+			return;
+		}
+		if (visitStarted) {
+			showingCard = false;
+			return;
+		}
+		visitStarted = true;
+		awaitingCard = true;
+		showingCard = true;
+		void loadOffer();
 	}
-	$: wasOpen = open;
+
+	$: syncModal(open, judge);
+	$: if (open && visitStarted) {
+		showingCard = Boolean(card) || awaitingCard;
+	}
 
 	$: localPersonal = browser ? readPersonalHistogram() : emptyHistogram();
 	$: personal = includeScore(
@@ -126,6 +170,146 @@
 		onClose();
 	}
 
+	function finishJudging() {
+		card = null;
+		remaining = 0;
+		showingCard = false;
+	}
+
+	function noteTotal(count: number) {
+		if (judgeTotal === 0 && count > 0) {
+			judgeTotal = count;
+		}
+	}
+
+	function readCard(data: Record<string, unknown>): RebuttalCard | null {
+		const value = data.card;
+		if (!value || typeof value !== 'object') {
+			return null;
+		}
+		const cardValue = value as Record<string, unknown>;
+		if (
+			typeof cardValue.id !== 'string' ||
+			typeof cardValue.letter !== 'string' ||
+			typeof cardValue.category !== 'string' ||
+			typeof cardValue.answer !== 'string'
+		) {
+			return null;
+		}
+		return {
+			id: cardValue.id,
+			letter: cardValue.letter,
+			category: cardValue.category,
+			answer: cardValue.answer
+		};
+	}
+
+	async function requestCard(
+		seen: number,
+		choice?: { id: string; vote: 'yes' | 'no' }
+	): Promise<{ card: RebuttalCard | null; remaining: number }> {
+		const empty = { card: null, remaining: 0 };
+		const body = new FormData();
+		body.set('player_id', playerId);
+		body.set('tz', timezone);
+		body.set('seen', String(seen));
+		if (skippedIds.length > 0) {
+			body.set('exclude', skippedIds.join(','));
+		}
+		if (choice) {
+			body.set('rebuttal_id', choice.id);
+			body.set('vote', choice.vote);
+		}
+		const response = await fetch('?/rebuttal', {
+			method: 'POST',
+			body,
+			headers: {
+				accept: 'application/json',
+				'x-sveltekit-action': 'true'
+			}
+		});
+		const result = deserialize(await response.text());
+		if (result.type !== 'success' || !result.data || typeof result.data !== 'object') {
+			return empty;
+		}
+		const data = result.data as Record<string, unknown>;
+		return {
+			card: readCard(data),
+			remaining: typeof data.remaining === 'number' ? data.remaining : 0
+		};
+	}
+
+	function showOffer(offer: { card: RebuttalCard | null; remaining: number }, previousId: string) {
+		if (!offer.card || offer.card.id === previousId || cardsSeen >= MAX_CARDS_PER_VISIT) {
+			finishJudging();
+			return;
+		}
+		card = offer.card;
+		remaining = offer.remaining;
+		noteTotal(offer.remaining);
+	}
+
+	async function loadOffer() {
+		awaitingCard = true;
+		try {
+			const offer = await requestCard(cardsSeen);
+			if (!offer.card || cardsSeen >= MAX_CARDS_PER_VISIT) {
+				finishJudging();
+				return;
+			}
+			card = offer.card;
+			remaining = offer.remaining;
+			noteTotal(offer.remaining);
+		} catch {
+			finishJudging();
+		} finally {
+			awaitingCard = false;
+		}
+	}
+
+	async function submitVote(choice: 'yes' | 'no') {
+		if (!card || voting) {
+			return;
+		}
+		voting = true;
+		awaitingCard = true;
+		const currentId = card.id;
+		card = null;
+		const seen = cardsSeen + 1;
+		try {
+			const offer = await requestCard(seen, { id: currentId, vote: choice });
+			cardsSeen = seen;
+			showOffer(offer, currentId);
+		} catch {
+			finishJudging();
+		} finally {
+			voting = false;
+			awaitingCard = false;
+		}
+	}
+
+	async function skipCard() {
+		if (!card || voting) {
+			return;
+		}
+		voting = true;
+		awaitingCard = true;
+		const currentId = card.id;
+		skippedIds = [...skippedIds, currentId];
+		card = null;
+		const seen = cardsSeen + 1;
+		try {
+			const offer = await requestCard(seen);
+			cardsSeen = seen;
+			showOffer(offer, currentId);
+		} catch {
+			finishJudging();
+		} finally {
+			voting = false;
+			awaitingCard = false;
+		}
+	}
+
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && open) {
 			close();
@@ -147,15 +331,83 @@
 			on:click={close}
 		></button>
 		<div
-			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
+			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-md overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
 			in:scale={{ duration: 220, start: 0.94, easing: cubicOut }}
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby={dialogLabel}
 		>
-			{#key view}
+			{#if showingCard}
 				<div
-					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] overflow-y-auto px-6 py-7"
+					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] w-full min-w-0 overflow-x-clip overflow-y-auto px-6 py-7"
+				>
+					<div class="flex items-center justify-between">
+						<p class="font-inter text-sm text-gray-400">
+							{judgeTotal > 0 ? `${cardsSeen + 1} of ${judgeTotal}` : ''}
+						</p>
+						<div class="flex items-center gap-3">
+							<button
+								type="button"
+								class="cursor-pointer font-inter text-sm text-gray-400 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+								disabled={!card || voting}
+								on:click={skipCard}
+							>
+								Skip
+							</button>
+							<button
+								type="button"
+								class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+								aria-label="Close"
+								on:click={close}
+							>
+								<svelte:component this={X} size={18} weight="bold" />
+							</button>
+						</div>
+					</div>
+					{#if card}
+						<div id="rebuttal-card-title" class="mt-8 space-y-2 text-center">
+							<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+								<span class="shrink-0 font-inter text-sm text-gray-400">Does</span>
+								<span
+									class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
+									>{card.answer}</span
+								>
+							</p>
+							<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+								<span class="shrink-0 font-inter text-sm text-gray-400">count for</span>
+								<span
+									class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
+									>{card.category}</span
+								>
+							</p>
+						</div>
+						<div class="mt-10 grid grid-cols-2 gap-3">
+							<button
+								type="button"
+								class="cursor-pointer rounded-md border border-gray-300 p-3 text-base text-dark disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-light"
+								disabled={voting}
+								on:click={() => submitVote('no')}
+							>
+								No
+							</button>
+							<button
+								type="button"
+								class="cursor-pointer rounded-md bg-dark p-3 text-base text-light disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
+								disabled={voting}
+								on:click={() => submitVote('yes')}
+							>
+								Yes
+							</button>
+						</div>
+					{:else}
+						<h2 id="rebuttal-card-title" class="sr-only">Answer</h2>
+						<div class="h-48"></div>
+					{/if}
+				</div>
+			{:else}
+				{#key view}
+				<div
+					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] w-full min-w-0 overflow-x-clip overflow-y-auto px-6 py-7"
 					in:fly|local={{
 						x: switching ? direction * 32 : 0,
 						duration: switching ? 240 : 0,
@@ -401,20 +653,22 @@
 								</button>
 							</div>
 
-							<div class="mt-8">
+							<div class="mt-8 overflow-x-clip">
 								{#key scope}
 									<Histogram counts={activeCounts} highlight={score} variant="columns" />
 								{/key}
 							</div>
 
-							<div class="mt-6 text-center text-sm text-gray-400">
+							<div
+								class="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-gray-400"
+							>
 								{#if dateLabel}
-									{dateLabel}<span
-										class="mx-2 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle"
-									></span>
-								{/if}Play again tomorrow<span
-									class="mx-2 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle"
-								></span><button
+									<span>{dateLabel}</span>
+									<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+								{/if}
+								<span>Play again tomorrow</span>
+								<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+								<button
 									type="button"
 									class="cursor-pointer text-gray-400 underline underline-offset-2 transition-all hover:underline-offset-4"
 									on:click={() => showView('feedback', 1)}
@@ -431,7 +685,8 @@
 						</form>
 					{/if}
 				</div>
-			{/key}
+				{/key}
+			{/if}
 		</div>
 	</div>
 {/if}
