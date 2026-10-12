@@ -197,7 +197,7 @@ export const actions: Actions = {
 			const playerId = parsePlayerId(formData.get('player_id'));
 			const timezone = readTimezone(formData);
 			if (!playerId || !timezone) {
-				return { success: true, card: null };
+				return { success: true, card: null, remaining: 0 };
 			}
 
 			const today = localDateInTimezone(timezone);
@@ -213,15 +213,24 @@ export const actions: Actions = {
 			}
 
 			const seen = Number.parseInt(String(formData.get('seen') ?? '0'), 10);
-			if (rebuttalVisitIsFull(Number.isFinite(seen) ? seen : 0)) {
-				return { success: true, card: null };
+			const safeSeen = Number.isFinite(seen) ? seen : 0;
+			if (rebuttalVisitIsFull(safeSeen)) {
+				return { success: true, card: null, remaining: 0 };
 			}
 
-			const card = await offerRebuttalCard({ playerId, today });
-			return { success: true, card };
+			const excludeIds = String(formData.get('exclude') ?? '')
+				.split(',')
+				.filter((id) => isPlayerId(id));
+			const offer = await offerRebuttalCard({
+				playerId,
+				today,
+				excludeIds,
+				seen: safeSeen
+			});
+			return { success: true, card: offer.card, remaining: offer.remaining };
 		} catch (error) {
 			console.error('Error in rebuttal action:', error);
-			return { success: true, card: null };
+			return { success: true, card: null, remaining: 0 };
 		}
 	},
 

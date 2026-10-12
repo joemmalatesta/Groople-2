@@ -47,11 +47,13 @@
 	let errorMessage = '';
 	let feedbackError = '';
 	let submitting = false;
-	let wasOpen = false;
+	let modalWasOpen = false;
 	let copied = false;
 	let showingCard = false;
 	let card: RebuttalCard | null = null;
 	let cardsSeen = 0;
+	let skippedIds: string[] = [];
+	let remaining = 0;
 	let voting = false;
 	let shareIcon: LinkPinch;
 	let formElement: HTMLFormElement;
@@ -71,7 +73,15 @@
 				? 'thanks-title'
 				: 'feedback-title';
 
-	$: if (open && !wasOpen) {
+	function syncModal(isOpen: boolean, shouldJudge: boolean) {
+		if (isOpen === modalWasOpen) {
+			return;
+		}
+		const justOpened = isOpen && !modalWasOpen;
+		modalWasOpen = isOpen;
+		if (!justOpened) {
+			return;
+		}
 		view = 'scores';
 		direction = 1;
 		switching = false;
@@ -80,13 +90,16 @@
 		submitting = false;
 		card = null;
 		cardsSeen = 0;
+		skippedIds = [];
+		remaining = 0;
 		voting = false;
-		showingCard = judge;
-		if (judge) {
+		showingCard = shouldJudge;
+		if (shouldJudge) {
 			void loadOffer();
 		}
 	}
-	$: wasOpen = open;
+
+	$: syncModal(open, judge);
 
 	$: localPersonal = browser ? readPersonalHistogram() : emptyHistogram();
 	$: personal = includeScore(
@@ -144,6 +157,12 @@
 		onClose();
 	}
 
+	function finishJudging() {
+		card = null;
+		remaining = 0;
+		showingCard = false;
+	}
+
 	function readCard(data: Record<string, unknown>): RebuttalCard | null {
 		const value = data.card;
 		if (!value || typeof value !== 'object') {
@@ -169,11 +188,15 @@
 	async function requestCard(
 		seen: number,
 		choice?: { id: string; vote: 'yes' | 'no' }
-	): Promise<RebuttalCard | null> {
+	): Promise<{ card: RebuttalCard | null; remaining: number }> {
+		const empty = { card: null, remaining: 0 };
 		const body = new FormData();
 		body.set('player_id', playerId);
 		body.set('tz', timezone);
 		body.set('seen', String(seen));
+		if (skippedIds.length > 0) {
+			body.set('exclude', skippedIds.join(','));
+		}
 		if (choice) {
 			body.set('rebuttal_id', choice.id);
 			body.set('vote', choice.vote);
@@ -188,24 +211,38 @@
 		});
 		const result = deserialize(await response.text());
 		if (result.type !== 'success' || !result.data || typeof result.data !== 'object') {
-			return null;
+			return empty;
 		}
-		return readCard(result.data as Record<string, unknown>);
+		const data = result.data as Record<string, unknown>;
+		return {
+			card: readCard(data),
+			remaining: typeof data.remaining === 'number' ? data.remaining : 0
+		};
+	}
+
+	function showOffer(offer: { card: RebuttalCard | null; remaining: number }, previousId: string) {
+		if (!open || !offer.card || offer.card.id === previousId || cardsSeen >= MAX_CARDS_PER_VISIT) {
+			finishJudging();
+			return;
+		}
+		card = offer.card;
+		remaining = offer.remaining;
 	}
 
 	async function loadOffer() {
 		try {
-			const next = await requestCard(0);
+			const offer = await requestCard(0);
 			if (!open) {
 				return;
 			}
-			if (!next) {
-				showingCard = false;
+			if (!offer.card) {
+				finishJudging();
 				return;
 			}
-			card = next;
+			card = offer.card;
+			remaining = offer.remaining;
 		} catch {
-			showingCard = false;
+			finishJudging();
 		}
 	}
 
@@ -217,24 +254,37 @@
 		const currentId = card.id;
 		const seen = cardsSeen + 1;
 		try {
-			const next = await requestCard(seen, { id: currentId, vote: choice });
+			const offer = await requestCard(seen, { id: currentId, vote: choice });
 			cardsSeen = seen;
-			if (!next || next.id === currentId || seen >= MAX_CARDS_PER_VISIT) {
-				card = null;
-				showingCard = false;
-				return;
-			}
-			card = next;
+			showOffer(offer, currentId);
 		} catch {
-			card = null;
-			showingCard = false;
+			finishJudging();
+		} finally {
+			voting = false;
+		}
+	}
+
+	async function skipCard() {
+		if (!card || voting) {
+			return;
+		}
+		voting = true;
+		const currentId = card.id;
+		skippedIds = [...skippedIds, currentId];
+		const seen = cardsSeen + 1;
+		try {
+			const offer = await requestCard(seen);
+			cardsSeen = seen;
+			showOffer(offer, currentId);
+		} catch {
+			finishJudging();
 		} finally {
 			voting = false;
 		}
 	}
 
 	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && open) {
+		if (event.key === 'Escape' && open && !showingCard) {
 			close();
 		}
 	}
@@ -251,7 +301,11 @@
 			type="button"
 			class="absolute inset-0 bg-dark/50 dark:bg-black/60"
 			aria-label="Close scores"
-			on:click={close}
+			on:click={() => {
+				if (!showingCard) {
+					close();
+				}
+			}}
 		></button>
 		<div
 			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
@@ -262,24 +316,23 @@
 		>
 			{#if showingCard}
 				<div class="col-start-1 row-start-1 px-6 py-7">
-					<div class="flex justify-end">
+					<div class="flex items-center justify-between">
+						<p class="text-sm text-gray-400">
+							{remaining > 0 ? `${remaining} left` : ''}
+						</p>
 						<button
 							type="button"
-							class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
-							aria-label="Close"
-							on:click={close}
+							class="cursor-pointer text-sm text-gray-400 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+							disabled={!card || voting}
+							on:click={skipCard}
 						>
-							<svelte:component this={X} size={18} weight="bold" />
+							Skip
 						</button>
 					</div>
 					{#if card}
-						<p class="text-center text-sm tracking-widest text-gray-400 uppercase">Rebuttal</p>
-						<p class="mt-6 text-center text-sm tracking-widest text-gray-400 uppercase">
-							{card.letter}
-						</p>
 						<h2
 							id="rebuttal-card-title"
-							class="mt-2 text-center font-inter text-lg text-dark dark:text-light"
+							class="mt-10 text-center font-inter text-lg text-dark dark:text-light"
 						>
 							{card.category}
 						</h2>

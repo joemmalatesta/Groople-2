@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
 	answers,
@@ -164,15 +164,25 @@ export async function submitOwnRebuttal(params: {
 	return { sent: true, yes, no };
 }
 
+export type RebuttalOffer = {
+	card: RebuttalCard | null;
+	remaining: number;
+};
+
 export async function offerRebuttalCard(params: {
 	playerId: string;
 	today: string;
-}): Promise<RebuttalCard | null> {
-	if ((await countPlays(params.playerId)) < 1) {
-		return null;
+	excludeIds?: string[];
+	seen?: number;
+}): Promise<RebuttalOffer> {
+	const none: RebuttalOffer = { card: null, remaining: 0 };
+	const seen = params.seen ?? 0;
+	if (seen >= MAX_CARDS_PER_VISIT || (await countPlays(params.playerId)) < 1) {
+		return none;
 	}
 
 	const yesterday = addUtcDays(params.today, -1);
+	const excludeIds = params.excludeIds ?? [];
 	const voteCount = sql<number>`(
 		select count(*)::int from ${rebuttalVotes}
 		where ${rebuttalVotes.rebuttalId} = ${rebuttals.id}
@@ -197,22 +207,26 @@ export async function offerRebuttalCard(params: {
 					select 1 from ${rebuttalVotes}
 					where ${rebuttalVotes.rebuttalId} = ${rebuttals.id}
 					and ${rebuttalVotes.playerId} = ${params.playerId}
-				)`
+				)`,
+				excludeIds.length > 0 ? notInArray(rebuttals.id, excludeIds) : undefined
 			)
 		)
-		.orderBy(desc(voteCount), sql`random()`)
-		.limit(1);
+		.orderBy(desc(voteCount), sql`random()`);
 
+	const remaining = Math.min(rows.length, MAX_CARDS_PER_VISIT - seen);
 	const row = rows[0];
-	if (!row) {
-		return null;
+	if (!row || remaining < 1) {
+		return none;
 	}
 
 	return {
-		id: row.id,
-		letter: row.letter.toUpperCase(),
-		category: row.category,
-		answer: row.answer
+		card: {
+			id: row.id,
+			letter: row.letter.toUpperCase(),
+			category: row.category,
+			answer: row.answer
+		},
+		remaining
 	};
 }
 
