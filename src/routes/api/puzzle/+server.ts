@@ -6,6 +6,7 @@ import { isValidTimeZone, localDateInTimezone } from '$lib/server/localDate';
 import { getPlayForPlayerDate } from '$lib/server/persistPlay';
 import { getPlayer } from '$lib/server/players';
 import { getScoreboardStats } from '$lib/server/scoreboard';
+import { listDecidedRebuttalIds } from '$lib/server/rebuttals';
 import { isPlayerId } from '$lib/playerId';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -51,6 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		isPlayerId(playerId) && play
 			? await getScoreboardStats(puzzle.date, playerId, play.score)
 			: null;
+	const decidedRebuttalIds = isPlayerId(playerId) ? await listDecidedRebuttalIds(playerId) : [];
 
 	return json({
 		date: puzzle.date,
@@ -58,6 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		letter: puzzle.letter || LETTERS[0],
 		play,
 		player,
-		scoreboard
+		scoreboard,
+		decidedRebuttalIds
 	});
 };

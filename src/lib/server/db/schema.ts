@@ -1,4 +1,5 @@
 import {
+	pgEnum,
 	pgTable,
 	text,
 	integer,
@@ -127,6 +128,7 @@ export const answers = pgTable(
 		answer: text('answer').notNull(),
 		correct: boolean('correct').notNull(),
 		yesProbability: real('yes_probability'),
+		profaneProbability: real('profane_probability'),
 		rebuttaled: boolean('rebuttaled').notNull().default(false)
 	},
 	(table) => ({
@@ -136,5 +138,49 @@ export const answers = pgTable(
 			table.categoryId,
 			table.yesProbability
 		)
+	})
+);
+
+export const rebuttalStatus = pgEnum('rebuttal_status', ['open', 'yes', 'no']);
+export const rebuttalVote = pgEnum('rebuttal_vote', ['yes', 'no']);
+
+export const rebuttals = pgTable(
+	'rebuttals',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		answerId: uuid('answer_id')
+			.notNull()
+			.unique()
+			.references(() => answers.id),
+		authorPlayerId: uuid('author_player_id')
+			.notNull()
+			.references(() => players.id),
+		puzzleDate: date('puzzle_date')
+			.notNull()
+			.references(() => dailyPuzzles.date),
+		status: rebuttalStatus('status').notNull().default('open'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		resolvedAt: timestamp('resolved_at', { withTimezone: true })
+	},
+	(table) => ({
+		statusDateIdx: index('rebuttals_status_puzzle_date_idx').on(table.status, table.puzzleDate),
+		authorIdx: index('rebuttals_author_player_id_idx').on(table.authorPlayerId)
+	})
+);
+
+export const rebuttalVotes = pgTable(
+	'rebuttal_votes',
+	{
+		rebuttalId: uuid('rebuttal_id')
+			.notNull()
+			.references(() => rebuttals.id),
+		playerId: uuid('player_id')
+			.notNull()
+			.references(() => players.id),
+		vote: rebuttalVote('vote').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.rebuttalId, table.playerId] })
 	})
 );
