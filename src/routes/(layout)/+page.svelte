@@ -21,7 +21,12 @@
 	import type { PlayerProfile } from '$lib/playerProfile';
 	import type { ScoreboardStats } from '$lib/scoreboard';
 	import type { SavedPlay, RebuttalTally } from '$lib/savedPlay';
-	import { isInRebuttalBand, MAX_REBUTTALS_PER_PLAY } from '$lib/rebuttalRules';
+	import {
+		isInRebuttalBand,
+		isRebuttalCard,
+		MAX_REBUTTALS_PER_PLAY,
+		type RebuttalCard
+	} from '$lib/rebuttalRules';
 	import { setDecidedRebuttalIds } from '$lib/rebuttalInbox';
 	import favicon from '$lib/assets/favicon.svg';
 	import faviconLight from '$lib/assets/favicon-light.svg';
@@ -62,9 +67,13 @@
 	let archiveRequest = 0;
 	let sentRebuttals = rebuttalFlags(data.play?.rebuttalPositions);
 	let rebuttalVotes = voteTallies(data.play?.rebuttalVotes);
-	let yesProbabilities: (number | null)[] = data.play?.yesProbabilities ?? Array.from({ length: 12 }, () => null);
+	let yesProbabilities: (number | null)[] =
+		data.play?.yesProbabilities ?? Array.from({ length: 12 }, () => null);
 	let profaneAnswers = data.play?.profane ?? Array.from({ length: 12 }, () => false);
 	let rebuttalBusyPosition = 0;
+	let judgeCard: RebuttalCard | null = isRebuttalCard(data.rebuttalCard) ? data.rebuttalCard : null;
+	let judgePosition = data.rebuttalPosition ?? 0;
+	let judgeTotal = data.rebuttalTotal ?? 0;
 
 	function rebuttalFlags(positions: number[] | undefined): boolean[] {
 		const flags = Array.from({ length: 12 }, () => false);
@@ -178,7 +187,7 @@
 		if (answersSubmitted) {
 			screen = 'puzzle';
 			scoreEntry = 'scores';
-			judgeCards = true;
+			judgeCards = judgeCard !== null;
 			requestAnimationFrame(() => {
 				scoresModalOpen = true;
 			});
@@ -257,6 +266,9 @@
 				rebuttalPositions?: number[];
 				rebuttalVotes?: RebuttalTally[];
 				yesProbabilities?: (number | null)[];
+				rebuttalCard?: unknown;
+				rebuttalPosition?: number;
+				rebuttalTotal?: number;
 			};
 			responseArray = dataResult.validationResults;
 			if (Array.isArray(dataResult.answers)) {
@@ -285,6 +297,10 @@
 			if (Array.isArray(dataResult.yesProbabilities)) {
 				yesProbabilities = dataResult.yesProbabilities;
 			}
+			judgeCard = isRebuttalCard(dataResult.rebuttalCard) ? dataResult.rebuttalCard : null;
+			judgePosition =
+				typeof dataResult.rebuttalPosition === 'number' ? dataResult.rebuttalPosition : 0;
+			judgeTotal = typeof dataResult.rebuttalTotal === 'number' ? dataResult.rebuttalTotal : 0;
 			answersSubmitted = true;
 			revealAnswers = true;
 			recordLocalPlay({
@@ -293,7 +309,7 @@
 				validationResults: responseArray
 			});
 			scoreEntry = 'scores';
-			judgeCards = true;
+			judgeCards = judgeCard !== null;
 			window.setTimeout(() => {
 				scoresModalOpen = true;
 			}, 280);
@@ -496,21 +512,21 @@
 	<div class="relative flex w-full flex-1 flex-col items-center px-4">
 		{#if screen === 'landing'}
 			<div class="flex w-full flex-1 flex-col items-center {scoresModalOpen ? 'blur' : ''}">
-			<Landing
-				name={playerName}
-				{firstVisit}
-				{dateLabel}
-				onStart={enterPuzzle}
-				onTutorial={() => {
-					screen = 'tutorial';
-				}}
-				onRebuttals={() => {
-					scoreEntry = 'rebuttals';
-					rebuttalsOnly = true;
-					judgeCards = false;
-					scoresModalOpen = true;
-				}}
-			/>
+				<Landing
+					name={playerName}
+					{firstVisit}
+					{dateLabel}
+					onStart={enterPuzzle}
+					onTutorial={() => {
+						screen = 'tutorial';
+					}}
+					onRebuttals={() => {
+						scoreEntry = 'rebuttals';
+						rebuttalsOnly = true;
+						judgeCards = false;
+						scoresModalOpen = true;
+					}}
+				/>
 			</div>
 		{:else if screen === 'tutorial'}
 			<Tutorial
@@ -615,7 +631,7 @@
 								on:click={() => {
 									scoreEntry = 'scores';
 									rebuttalsOnly = false;
-									judgeCards = true;
+									judgeCards = judgeCard !== null;
 									scoresModalOpen = true;
 								}}
 							>
@@ -634,6 +650,14 @@
 		<Scorecard
 			open={scoresModalOpen}
 			judge={judgeCards}
+			{judgeCard}
+			{judgePosition}
+			{judgeTotal}
+			onJudgeCard={(offer) => {
+				judgeCard = offer.card;
+				judgePosition = offer.position;
+				judgeTotal = offer.total;
+			}}
 			{playerId}
 			score={todayScore}
 			startView={scoreEntry}

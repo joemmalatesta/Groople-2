@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
 	pgEnum,
 	pgTable,
@@ -6,6 +7,7 @@ import {
 	boolean,
 	timestamp,
 	index,
+	uniqueIndex,
 	uuid,
 	date,
 	unique,
@@ -142,7 +144,7 @@ export const answers = pgTable(
 );
 
 export const rebuttalStatus = pgEnum('rebuttal_status', ['open', 'yes', 'no']);
-export const rebuttalVote = pgEnum('rebuttal_vote', ['yes', 'no']);
+export const rebuttalVote = pgEnum('rebuttal_vote', ['yes', 'no', 'pending', 'skipped']);
 
 export const rebuttals = pgTable(
 	'rebuttals',
@@ -178,9 +180,13 @@ export const rebuttalVotes = pgTable(
 			.notNull()
 			.references(() => players.id),
 		vote: rebuttalVote('vote').notNull(),
+		day: date('day').notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 	},
 	(table) => ({
-		pk: primaryKey({ columns: [table.rebuttalId, table.playerId] })
+		pk: primaryKey({ columns: [table.rebuttalId, table.playerId] }),
+		onePendingPerDay: uniqueIndex('rebuttal_votes_one_pending_per_day')
+			.on(table.playerId, table.day)
+			.where(sql`${table.vote} = 'pending'`)
 	})
 );

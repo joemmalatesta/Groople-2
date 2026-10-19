@@ -21,7 +21,7 @@
 	import { nameInitials, writePlayerName } from '$lib/playerName';
 	import { shareText } from '$lib/shareResult';
 	import { browser } from '$app/environment';
-	import { MAX_CARDS_PER_VISIT, type RebuttalCard } from '$lib/rebuttalRules';
+	import { isRebuttalCard, type RebuttalCard } from '$lib/rebuttalRules';
 	import {
 		fetchRebuttalInbox,
 		formatRebuttalDate,
@@ -45,6 +45,14 @@
 	export let onSave: (player: PlayerProfile) => void = () => {};
 	export let onOpenDay: (date: string) => void = () => {};
 	export let judge = false;
+	export let judgeCard: RebuttalCard | null = null;
+	export let judgePosition = 0;
+	export let judgeTotal = 0;
+	export let onJudgeCard: (offer: {
+		card: RebuttalCard | null;
+		position: number;
+		total: number;
+	}) => void = () => {};
 	export let startView: 'scores' | 'rebuttals' | 'calendar' = 'scores';
 	export let rebuttalsOnly = false;
 
@@ -135,12 +143,9 @@
 	let showingCard = false;
 	let card: RebuttalCard | null = null;
 	let cardsSeen = 0;
-	let skippedIds: string[] = [];
-	let remaining = 0;
-	let judgeTotal = 0;
+	let cardTotal = 0;
 	let voting = false;
 	let visitStarted = false;
-	let awaitingCard = false;
 	let shareIcon: LinkPinch;
 	let formElement: HTMLFormElement;
 
@@ -189,27 +194,22 @@
 		feedbackBody = '';
 		feedbackError = '';
 		submitting = false;
-		if (rebuttalsOnly || !shouldJudge) {
+		if (rebuttalsOnly || !shouldJudge || !judgeCard) {
 			showingCard = false;
 			return;
 		}
-		if (card || awaitingCard) {
-			showingCard = true;
-			return;
+		if (!visitStarted) {
+			visitStarted = true;
+			card = judgeCard;
+			cardsSeen = Math.max(0, judgePosition - 1);
+			cardTotal = judgeTotal;
 		}
-		if (visitStarted) {
-			showingCard = false;
-			return;
-		}
-		visitStarted = true;
-		awaitingCard = true;
-		showingCard = true;
-		void loadOffer();
+		showingCard = card !== null;
 	}
 
 	$: syncModal(open, judge);
-	$: if (open && visitStarted) {
-		showingCard = Boolean(card) || awaitingCard;
+	$: if (open && visitStarted && judge && !rebuttalsOnly) {
+		showingCard = card !== null;
 	}
 	$: played = new Set(playedDates);
 	$: monthCells = buildMonth(visibleMonth);
@@ -400,53 +400,41 @@
 
 	function finishJudging() {
 		card = null;
-		remaining = 0;
 		showingCard = false;
+		onJudgeCard({ card: null, position: 0, total: 0 });
 	}
 
-	function noteTotal(count: number) {
-		if (judgeTotal === 0 && count > 0) {
-			judgeTotal = count;
+	type JudgeOffer = { card: RebuttalCard | null; position: number; total: number };
+
+	function applyOffer(offer: JudgeOffer | null) {
+		if (!offer) {
+			return;
 		}
+		if (!offer.card) {
+			finishJudging();
+			return;
+		}
+		card = offer.card;
+		cardsSeen = Math.max(0, offer.position - 1);
+		cardTotal = offer.total;
+		showingCard = true;
+		onJudgeCard(offer);
 	}
 
-	function readCard(data: Record<string, unknown>): RebuttalCard | null {
-		const value = data.card;
-		if (!value || typeof value !== 'object') {
-			return null;
-		}
-		const cardValue = value as Record<string, unknown>;
-		if (
-			typeof cardValue.id !== 'string' ||
-			typeof cardValue.letter !== 'string' ||
-			typeof cardValue.category !== 'string' ||
-			typeof cardValue.answer !== 'string'
-		) {
-			return null;
-		}
-		return {
-			id: cardValue.id,
-			letter: cardValue.letter,
-			category: cardValue.category,
-			answer: cardValue.answer
-		};
-	}
-
-	async function requestCard(
-		seen: number,
-		choice?: { id: string; vote: 'yes' | 'no' }
-	): Promise<{ card: RebuttalCard | null; remaining: number }> {
-		const empty = { card: null, remaining: 0 };
+	async function requestCard(action: {
+		id: string;
+		vote?: 'yes' | 'no';
+		skip?: boolean;
+	}): Promise<JudgeOffer | null> {
 		const body = new FormData();
 		body.set('player_id', playerId);
 		body.set('tz', timezone);
-		body.set('seen', String(seen));
-		if (skippedIds.length > 0) {
-			body.set('exclude', skippedIds.join(','));
+		body.set('rebuttal_id', action.id);
+		if (action.skip) {
+			body.set('skip', '1');
 		}
-		if (choice) {
-			body.set('rebuttal_id', choice.id);
-			body.set('vote', choice.vote);
+		if (action.vote) {
+			body.set('vote', action.vote);
 		}
 		const response = await fetch('?/rebuttal', {
 			method: 'POST',
@@ -458,41 +446,14 @@
 		});
 		const result = deserialize(await response.text());
 		if (result.type !== 'success' || !result.data || typeof result.data !== 'object') {
-			return empty;
+			return null;
 		}
 		const data = result.data as Record<string, unknown>;
 		return {
-			card: readCard(data),
-			remaining: typeof data.remaining === 'number' ? data.remaining : 0
+			card: isRebuttalCard(data.card) ? data.card : null,
+			position: typeof data.position === 'number' ? data.position : 0,
+			total: typeof data.total === 'number' ? data.total : 0
 		};
-	}
-
-	function showOffer(offer: { card: RebuttalCard | null; remaining: number }, previousId: string) {
-		if (!offer.card || offer.card.id === previousId || cardsSeen >= MAX_CARDS_PER_VISIT) {
-			finishJudging();
-			return;
-		}
-		card = offer.card;
-		remaining = offer.remaining;
-		noteTotal(offer.remaining);
-	}
-
-	async function loadOffer() {
-		awaitingCard = true;
-		try {
-			const offer = await requestCard(cardsSeen);
-			if (!offer.card || cardsSeen >= MAX_CARDS_PER_VISIT) {
-				finishJudging();
-				return;
-			}
-			card = offer.card;
-			remaining = offer.remaining;
-			noteTotal(offer.remaining);
-		} catch {
-			finishJudging();
-		} finally {
-			awaitingCard = false;
-		}
 	}
 
 	async function submitVote(choice: 'yes' | 'no') {
@@ -500,19 +461,13 @@
 			return;
 		}
 		voting = true;
-		awaitingCard = true;
 		const currentId = card.id;
-		card = null;
-		const seen = cardsSeen + 1;
 		try {
-			const offer = await requestCard(seen, { id: currentId, vote: choice });
-			cardsSeen = seen;
-			showOffer(offer, currentId);
+			applyOffer(await requestCard({ id: currentId, vote: choice }));
 		} catch {
-			finishJudging();
+			// Keep the card that was already on screen.
 		} finally {
 			voting = false;
-			awaitingCard = false;
 		}
 	}
 
@@ -520,21 +475,14 @@
 		if (!card || voting) {
 			return;
 		}
-		voting = true;
-		awaitingCard = true;
 		const currentId = card.id;
-		skippedIds = [...skippedIds, currentId];
-		card = null;
-		const seen = cardsSeen + 1;
+		voting = true;
 		try {
-			const offer = await requestCard(seen);
-			cardsSeen = seen;
-			showOffer(offer, currentId);
+			applyOffer(await requestCard({ id: currentId, skip: true }));
 		} catch {
-			finishJudging();
+			// Keep the card that was already on screen.
 		} finally {
 			voting = false;
-			awaitingCard = false;
 		}
 	}
 
@@ -593,7 +541,6 @@
 	</span>
 {/snippet}
 
-
 {#if open}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -606,19 +553,19 @@
 			on:click={close}
 		></button>
 		<div
-			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-md overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
+			class="relative z-10 grid max-h-[calc(100dvh-2rem)] w-full max-w-md min-w-0 overflow-hidden rounded-2xl bg-light shadow-2xl dark:bg-neutral-900"
 			in:scale={{ duration: 220, start: 0.94, easing: cubicOut }}
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby={dialogLabel}
 		>
-			{#if showingCard}
+			{#if showingCard && card}
 				<div
 					class="col-start-1 row-start-1 max-h-[calc(100dvh-2rem)] w-full min-w-0 overflow-x-clip overflow-y-auto px-6 py-7"
 				>
 					<div class="flex items-center justify-between">
 						<p class="font-inter text-sm text-gray-400">
-							{judgeTotal > 0 ? `${cardsSeen + 1} of ${judgeTotal}` : ''}
+							{cardTotal > 0 ? `${cardsSeen + 1} of ${cardTotal}` : ''}
 						</p>
 						<div class="flex items-center gap-3">
 							<button
@@ -639,45 +586,40 @@
 							</button>
 						</div>
 					</div>
-					{#if card}
-						<div id="rebuttal-card-title" class="mt-8 space-y-2 text-center">
-							<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
-								<span class="shrink-0 font-inter text-sm text-gray-400">Does</span>
-								<span
-									class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
-									>{card.answer}</span
-								>
-							</p>
-							<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
-								<span class="shrink-0 font-inter text-sm text-gray-400">count for</span>
-								<span
-									class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
-									>{card.category}</span
-								>
-							</p>
-						</div>
-						<div class="mt-10 grid grid-cols-2 gap-3">
-							<button
-								type="button"
-								class="cursor-pointer rounded-md border border-gray-300 p-3 font-inter text-base text-dark disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-light"
-								disabled={voting}
-								on:click={() => submitVote('no')}
+					<div id="rebuttal-card-title" class="mt-8 space-y-2 text-center">
+						<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+							<span class="shrink-0 font-inter text-sm text-gray-400">Does</span>
+							<span
+								class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
+								>{card.answer}</span
 							>
-								No
-							</button>
-							<button
-								type="button"
-								class="cursor-pointer rounded-md bg-dark p-3 font-inter text-base text-light disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
-								disabled={voting}
-								on:click={() => submitVote('yes')}
+						</p>
+						<p class="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1">
+							<span class="shrink-0 font-inter text-sm text-gray-400">count for</span>
+							<span
+								class="max-w-full font-['Instrument_Serif'] text-3xl leading-none wrap-break-word text-dark dark:text-light"
+								>{card.category}</span
 							>
-								Yes
-							</button>
-						</div>
-					{:else}
-						<h2 id="rebuttal-card-title" class="sr-only">Answer</h2>
-						<div class="h-48"></div>
-					{/if}
+						</p>
+					</div>
+					<div class="mt-10 grid grid-cols-2 gap-3">
+						<button
+							type="button"
+							class="cursor-pointer rounded-md border border-gray-300 p-3 font-inter text-base text-dark disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-light"
+							disabled={voting}
+							on:click={() => submitVote('no')}
+						>
+							No
+						</button>
+						<button
+							type="button"
+							class="cursor-pointer rounded-md bg-dark p-3 font-inter text-base text-light disabled:cursor-not-allowed disabled:opacity-50 dark:bg-light dark:text-dark"
+							disabled={voting}
+							on:click={() => submitVote('yes')}
+						>
+							Yes
+						</button>
+					</div>
 				</div>
 			{:else}
 				{#key view}
@@ -800,9 +742,9 @@
 									id="thanks-title"
 									class="mt-16 mb-8 text-center font-inter text-2xl text-dark dark:text-light"
 								>
-								Thanks — got it.
-							</h2>
-						</div>
+									Thanks — got it.
+								</h2>
+							</div>
 						{:else}
 							<form
 								bind:this={formElement}
@@ -854,41 +796,41 @@
 										</button>
 									</div>
 								{:else}
-								<div class="mb-1 flex items-center gap-2">
-									<label class="flex min-w-0 flex-1 items-center gap-2">
-										<span
-											class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs text-dark dark:bg-neutral-800 dark:text-light"
+									<div class="mb-1 flex items-center gap-2">
+										<label class="flex min-w-0 flex-1 items-center gap-2">
+											<span
+												class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs text-dark dark:bg-neutral-800 dark:text-light"
+											>
+												{#if initials}
+													{initials}
+												{:else}
+													<svelte:component this={User} size={14} weight="bold" />
+												{/if}
+											</span>
+											<input
+												name="name"
+												bind:value={nameValue}
+												maxlength="80"
+												autocomplete="nickname"
+												placeholder="Your name"
+												on:blur={saveProfile}
+												class="w-full min-w-0 bg-transparent text-base text-dark placeholder:text-gray-400 focus:outline-none dark:text-light"
+											/>
+										</label>
+										<button
+											type="button"
+											class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+											aria-label="Close"
+											on:click={close}
 										>
-											{#if initials}
-												{initials}
-											{:else}
-												<svelte:component this={User} size={14} weight="bold" />
-											{/if}
-										</span>
-										<input
-											name="name"
-											bind:value={nameValue}
-											maxlength="80"
-											autocomplete="nickname"
-											placeholder="Your name"
-											on:blur={saveProfile}
-											class="w-full min-w-0 bg-transparent text-base text-dark placeholder:text-gray-400 focus:outline-none dark:text-light"
-										/>
-									</label>
-									<button
-										type="button"
-										class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
-										aria-label="Close"
-										on:click={close}
-									>
-										<svelte:component this={X} size={18} weight="bold" />
-									</button>
-								</div>
+											<svelte:component this={X} size={18} weight="bold" />
+										</button>
+									</div>
 
-								<h2 id="scoreboard-title" class="sr-only">Scores</h2>
-								<div class="mt-3">
-									{@render scoreModes()}
-								</div>
+									<h2 id="scoreboard-title" class="sr-only">Scores</h2>
+									<div class="mt-3">
+										{@render scoreModes()}
+									</div>
 								{/if}
 
 								<div class="mt-4 grid overflow-x-clip">
@@ -910,7 +852,9 @@
 												<div class="flex flex-wrap justify-evenly gap-x-2 gap-y-4 text-center">
 													<div class="min-w-20 flex-1">
 														<h2 class="m-0 text-5xl text-dark dark:text-light">{score}</h2>
-														<p class="mt-1 text-xs tracking-widest text-gray-400 uppercase">Score</p>
+														<p class="mt-1 text-xs tracking-widest text-gray-400 uppercase">
+															Score
+														</p>
 													</div>
 													<div class="min-w-20 flex-1">
 														<h2 class="m-0 text-5xl text-dark dark:text-light">{streak}</h2>
@@ -997,7 +941,9 @@
 																{cell.day}
 															</button>
 														{:else if cell}
-															<span class="flex h-9 items-center justify-center text-sm text-gray-400">
+															<span
+																class="flex h-9 items-center justify-center text-sm text-gray-400"
+															>
 																{cell.day}
 															</span>
 														{:else}
@@ -1019,22 +965,23 @@
 														</p>
 													{:else}
 														<div class="flex flex-col gap-4">
-														{#each rebuttalItems as item, i (item.id)}
-															<div
-																class="flex items-start justify-between gap-3 text-left"
-																use:loadWhenSeen={i === rebuttalItems.length - 2 && rebuttalHasMore}
-															>
-																<div class="min-w-0">
-																	<p class="text-base wrap-break-word text-dark dark:text-light">
-																		{item.answer}
-																	</p>
-																	<p class="mt-1 text-xs wrap-break-word text-gray-400">
-																		{item.category} · {formatRebuttalDate(item.createdAt)}
-																	</p>
+															{#each rebuttalItems as item, i (item.id)}
+																<div
+																	class="flex items-start justify-between gap-3 text-left"
+																	use:loadWhenSeen={i === rebuttalItems.length - 2 &&
+																		rebuttalHasMore}
+																>
+																	<div class="min-w-0">
+																		<p class="text-base wrap-break-word text-dark dark:text-light">
+																			{item.answer}
+																		</p>
+																		<p class="mt-1 text-xs wrap-break-word text-gray-400">
+																			{item.category} · {formatRebuttalDate(item.createdAt)}
+																		</p>
+																	</div>
+																	{@render voteDots(item)}
 																</div>
-																{@render voteDots(item)}
-															</div>
-														{/each}
+															{/each}
 														</div>
 													{/if}
 												</div>
@@ -1044,23 +991,23 @@
 								</div>
 
 								{#if !rebuttalsOnly}
-								<div
-									class="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-gray-400"
-								>
-									{#if dateLabel}
-										<span>{dateLabel}</span>
-										<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-									{/if}
-									<span>Play again tomorrow</span>
-									<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-									<button
-										type="button"
-										class="cursor-pointer text-gray-400 underline underline-offset-2 transition-all hover:underline-offset-4"
-										on:click={() => showView('feedback', 1)}
+									<div
+										class="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-gray-400"
 									>
-										Leave Feedback
-									</button>
-								</div>
+										{#if dateLabel}
+											<span>{dateLabel}</span>
+											<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+										{/if}
+										<span>Play again tomorrow</span>
+										<span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+										<button
+											type="button"
+											class="cursor-pointer text-gray-400 underline underline-offset-2 transition-all hover:underline-offset-4"
+											on:click={() => showView('feedback', 1)}
+										>
+											Leave Feedback
+										</button>
+									</div>
 								{/if}
 
 								{#if errorMessage}
@@ -1068,7 +1015,6 @@
 										{errorMessage}
 									</p>
 								{/if}
-
 							</form>
 						{/if}
 					</div>

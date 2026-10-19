@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { pickRebuttalAnswerIds, resolveRebuttal } from './rebuttalRules';
+import {
+	canJudgeRebuttals,
+	decidingVotes,
+	pickRebuttalAnswerIds,
+	rebuttalDrawEntries,
+	resolveRebuttal
+} from './rebuttalRules';
+
+describe('canJudgeRebuttals', () => {
+	it('stays closed after a single finished puzzle', () => {
+		expect(canJudgeRebuttals(1, true)).toBe(false);
+		expect(canJudgeRebuttals(0, true)).toBe(false);
+	});
+
+	it('stays closed until today is finished, even with older puzzles', () => {
+		expect(canJudgeRebuttals(2, false)).toBe(false);
+		expect(canJudgeRebuttals(8, false)).toBe(false);
+	});
+
+	it('opens once today is finished and an earlier puzzle exists', () => {
+		expect(canJudgeRebuttals(2, true)).toBe(true);
+	});
+});
 
 describe('pickRebuttalAnswerIds', () => {
 	it('keeps the two highest scores above 0.40', () => {
@@ -46,5 +68,27 @@ describe('resolveRebuttal', () => {
 	it('does not reopen a closed case', () => {
 		expect(resolveRebuttal('yes', ['yes', 'yes', 'no'])).toBe('yes');
 		expect(resolveRebuttal('no', ['no', 'no', 'yes'])).toBe('no');
+	});
+
+	it('stays open when a held row is left out of the ballot', () => {
+		const ballots = decidingVotes(['yes', 'pending', 'skipped', 'pending']);
+		expect(ballots).toEqual(['yes']);
+		expect(resolveRebuttal('open', ballots)).toBe('open');
+	});
+});
+
+describe('rebuttalDrawEntries', () => {
+	it('lists a plain card once and repeats a today card, a yes, and a waiting author', () => {
+		const entries = rebuttalDrawEntries([
+			{ id: 'plain', fromToday: false, yeses: 0, authorWaiting: false },
+			{ id: 'today', fromToday: true, yeses: 0, authorWaiting: false },
+			{ id: 'yes', fromToday: false, yeses: 1, authorWaiting: false },
+			{ id: 'waiting', fromToday: false, yeses: 0, authorWaiting: true }
+		]);
+
+		expect(entries.filter((entry) => entry.id === 'plain')).toHaveLength(1);
+		expect(entries.filter((entry) => entry.id === 'today')).toHaveLength(2);
+		expect(entries.filter((entry) => entry.id === 'yes')).toHaveLength(2);
+		expect(entries.filter((entry) => entry.id === 'waiting')).toHaveLength(2);
 	});
 });
