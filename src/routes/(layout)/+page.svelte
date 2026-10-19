@@ -39,7 +39,8 @@
 	let answersSubmitted = Boolean(data.play);
 	let revealAnswers = false;
 	let scoresModalOpen = false;
-	let scoreEntry: 'scores' | 'rebuttals' = 'scores';
+	let scoreEntry: 'scores' | 'rebuttals' | 'calendar' = 'scores';
+	let rebuttalsOnly = false;
 	let rulesOpen = false;
 	let judgeCards = false;
 	let screen: 'landing' | 'tutorial' | 'puzzle' = data.play ? 'puzzle' : 'landing';
@@ -56,7 +57,7 @@
 	let startedAt = 0;
 	let timerInterval: ReturnType<typeof setInterval> | undefined;
 	let scrollPosition = 0;
-	let archive: ArchiveBoard | null = null;
+	let openingDate = '';
 	let archiveLoading = false;
 	let archiveRequest = 0;
 	let sentRebuttals = rebuttalFlags(data.play?.rebuttalPositions);
@@ -93,6 +94,8 @@
 		validationResults: boolean[];
 		timeRemainingMs: number;
 	};
+
+	let archive: ArchiveBoard | null = null;
 
 	$: categories = data.categories;
 	$: letter = data.letter;
@@ -351,6 +354,15 @@
 		archiveLoading = false;
 	}
 
+	function reopenCalendar() {
+		archiveRequest += 1;
+		archiveLoading = false;
+		scoreEntry = 'calendar';
+		rebuttalsOnly = false;
+		judgeCards = false;
+		scoresModalOpen = true;
+	}
+
 	function isStringList(value: unknown, length: number): value is string[] {
 		return (
 			Array.isArray(value) &&
@@ -382,6 +394,7 @@
 		}
 
 		const request = ++archiveRequest;
+		openingDate = date;
 		archiveLoading = true;
 		try {
 			const response = await fetch('/api/puzzle', {
@@ -493,6 +506,7 @@
 				}}
 				onRebuttals={() => {
 					scoreEntry = 'rebuttals';
+					rebuttalsOnly = true;
 					judgeCards = false;
 					scoresModalOpen = true;
 				}}
@@ -513,9 +527,9 @@
 						<button
 							type="button"
 							class="mt-5 mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
-							on:click={backToToday}
+							on:click={reopenCalendar}
 						>
-							Back to today
+							{formatPuzzleDate(openingDate)}
 						</button>
 					{/if}
 				{:else}
@@ -579,15 +593,12 @@
 							{/key}
 						{/if}
 						{#if archive}
-							<p class="mb-3 text-center text-sm text-gray-400">
-								{formatPuzzleDate(archive.date)}
-							</p>
 							<button
 								type="button"
 								class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
-								on:click={backToToday}
+								on:click={reopenCalendar}
 							>
-								Back to today
+								{formatPuzzleDate(archive.date)}
 							</button>
 						{:else if !answersSubmitted}
 							<button
@@ -603,6 +614,7 @@
 								class="mb-5 w-full cursor-pointer rounded-md bg-dark p-2 text-light dark:bg-light dark:text-dark"
 								on:click={() => {
 									scoreEntry = 'scores';
+									rebuttalsOnly = false;
 									judgeCards = true;
 									scoresModalOpen = true;
 								}}
@@ -625,6 +637,7 @@
 			{playerId}
 			score={todayScore}
 			startView={scoreEntry}
+			{rebuttalsOnly}
 			player={playerProfile}
 			{scoreboard}
 			timezone={browserTimeZone()}
@@ -637,6 +650,7 @@
 				scoresModalOpen = false;
 				judgeCards = false;
 				scoreEntry = 'scores';
+				rebuttalsOnly = false;
 			}}
 			onSave={(saved) => {
 				playerProfile = saved;

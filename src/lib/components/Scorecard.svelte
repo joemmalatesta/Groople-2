@@ -45,7 +45,8 @@
 	export let onSave: (player: PlayerProfile) => void = () => {};
 	export let onOpenDay: (date: string) => void = () => {};
 	export let judge = false;
-	export let startView: 'scores' | 'rebuttals' = 'scores';
+	export let startView: 'scores' | 'rebuttals' | 'calendar' = 'scores';
+	export let rebuttalsOnly = false;
 
 	const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -74,8 +75,11 @@
 
 	let activeScoreMode: ScoreMode = 'world';
 	$: activeScoreMode = showRebuttals ? 'rebuttals' : showCalendar ? 'calendar' : scope;
-	$: scoreChrome =
-		activeScoreMode === 'you' || activeScoreMode === 'world' ? 'scores' : activeScoreMode;
+	$: scoreChrome = rebuttalsOnly
+		? 'rebuttals'
+		: activeScoreMode === 'you' || activeScoreMode === 'world'
+			? 'scores'
+			: activeScoreMode;
 
 	function selectScoreMode(mode: ScoreMode) {
 		if (mode === activeScoreMode) {
@@ -115,6 +119,7 @@
 	let rebuttalCursor: string | null = null;
 	let rebuttalHasMore = true;
 	let rebuttalLoading = false;
+	let rebuttalsLoaded = false;
 	let rebuttalRequest = 0;
 	let rebuttalScroller: HTMLDivElement | undefined;
 	let direction = 1;
@@ -148,13 +153,15 @@
 
 	$: dialogLabel = showingCard
 		? 'rebuttal-card-title'
-		: view === 'scores'
-			? 'scoreboard-title'
-			: view === 'thanks'
-				? 'thanks-title'
-				: view === 'rebuttals'
-					? 'rebuttals-title'
-					: 'feedback-title';
+		: rebuttalsOnly
+			? 'rebuttals-only-title'
+			: view === 'scores'
+				? 'scoreboard-title'
+				: view === 'thanks'
+					? 'thanks-title'
+					: view === 'rebuttals'
+						? 'rebuttals-title'
+						: 'feedback-title';
 
 	function syncModal(isOpen: boolean, shouldJudge: boolean) {
 		if (isOpen === modalWasOpen) {
@@ -166,9 +173,14 @@
 			return;
 		}
 		view = 'scores';
-		showRebuttals = startView === 'rebuttals';
+		showRebuttals = rebuttalsOnly || startView === 'rebuttals';
+		showCalendar = !rebuttalsOnly && startView === 'calendar';
+		void ensureRebuttalsLoaded();
 		if (showRebuttals) {
 			noteRebuttalsOpened();
+		}
+		if (showCalendar) {
+			void loadPlayedDates();
 		}
 		direction = 1;
 		switching = false;
@@ -177,9 +189,7 @@
 		feedbackBody = '';
 		feedbackError = '';
 		submitting = false;
-		showCalendar = false;
-		visibleMonth = monthStart(puzzleDate);
-		if (!shouldJudge) {
+		if (rebuttalsOnly || !shouldJudge) {
 			showingCard = false;
 			return;
 		}
@@ -249,10 +259,14 @@
 
 	function noteRebuttalsOpened() {
 		markRequestedRebuttalsSeen();
-		rebuttalItems = [];
-		rebuttalCursor = null;
-		rebuttalHasMore = true;
-		loadRebuttalPage(true);
+	}
+
+	async function ensureRebuttalsLoaded() {
+		if (rebuttalsLoaded || rebuttalLoading) {
+			return;
+		}
+		await loadRebuttalPage(true);
+		rebuttalsLoaded = true;
 	}
 
 	async function loadRebuttalPage(reset: boolean) {
@@ -825,6 +839,21 @@
 									};
 								}}
 							>
+								{#if rebuttalsOnly}
+									<div class="mb-1 flex items-center justify-between gap-3">
+										<h2 id="rebuttals-only-title" class="text-2xl text-dark dark:text-light">
+											Rebuttals
+										</h2>
+										<button
+											type="button"
+											class="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-dark dark:hover:bg-neutral-800 dark:hover:text-light"
+											aria-label="Close"
+											on:click={close}
+										>
+											<svelte:component this={X} size={18} weight="bold" />
+										</button>
+									</div>
+								{:else}
 								<div class="mb-1 flex items-center gap-2">
 									<label class="flex min-w-0 flex-1 items-center gap-2">
 										<span
@@ -860,6 +889,7 @@
 								<div class="mt-3">
 									{@render scoreModes()}
 								</div>
+								{/if}
 
 								<div class="mt-4 grid overflow-x-clip">
 									{#key scoreChrome}
@@ -979,12 +1009,16 @@
 												<div
 													bind:this={rebuttalScroller}
 													data-rebuttal-scroll
-													class="max-h-[40vh] overflow-y-auto pr-3 font-inter"
+													class="h-[40vh] overflow-y-auto pr-3 font-inter"
 												>
-													{#if rebuttalItems.length === 0 && !rebuttalLoading}
-														<p class="text-sm text-gray-400">No rebuttals yet.</p>
-													{/if}
-													<div class="flex flex-col gap-4">
+													{#if rebuttalsLoaded && rebuttalItems.length === 0}
+														<p
+															class="flex h-full items-center justify-center px-10 text-center text-sm text-gray-400"
+														>
+															You haven't rebuttaled anything yet.
+														</p>
+													{:else}
+														<div class="flex flex-col gap-4">
 														{#each rebuttalItems as item, i (item.id)}
 															<div
 																class="flex items-start justify-between gap-3 text-left"
@@ -1001,13 +1035,15 @@
 																{@render voteDots(item)}
 															</div>
 														{/each}
-													</div>
+														</div>
+													{/if}
 												</div>
 											{/if}
 										</div>
 									{/key}
 								</div>
 
+								{#if !rebuttalsOnly}
 								<div
 									class="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-gray-400"
 								>
@@ -1025,6 +1061,7 @@
 										Leave Feedback
 									</button>
 								</div>
+								{/if}
 
 								{#if errorMessage}
 									<p class="mt-2 text-center text-sm text-red-600 dark:text-red-400">
