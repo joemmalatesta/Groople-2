@@ -76,10 +76,12 @@
 {#if answersSubmitted}
 	<div class="relative mb-1.5 px-3 py-2 {rowClass}">
 		<div class="flex min-w-0 flex-col gap-0.5 md:flex-row md:items-center md:gap-4">
-			<div class="relative flex min-w-0 items-baseline gap-2 md:flex-1 {textClass}">
-				<span class="min-w-6 shrink-0 text-base font-medium text-dark dark:text-light">{index}.</span>
+			<div class="relative flex min-w-0 items-baseline gap-2 md:flex-1">
+				<span class="min-w-6 shrink-0 text-base font-medium text-dark dark:text-light {textClass}"
+					>{index}.</span
+				>
 				<span
-					class="min-w-0 flex-1 text-base font-medium wrap-break-word text-dark dark:text-light {canRebuttal &&
+					class="min-w-0 flex-1 text-base font-medium wrap-break-word text-dark dark:text-light {textClass} {canRebuttal &&
 					rebuttalSent
 						? 'max-md:pr-14'
 						: canRebuttal && rebuttalOpen
