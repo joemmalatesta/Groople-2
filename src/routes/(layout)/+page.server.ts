@@ -4,13 +4,20 @@ import { loadOrCreatePuzzle } from '$lib/server/loadOrCreatePuzzle';
 import { isValidTimeZone, localDateInTimezone } from '$lib/server/localDate';
 import { getPlayForPlayerDate, persistPlay, recordPlayShare } from '$lib/server/persistPlay';
 import {
+	castRebuttalVote,
+	offerRebuttalCard,
+	skipRebuttalCard,
+	submitOwnRebuttal,
+	type RebuttalOffer
+} from '$lib/server/rebuttals';
+import { isPlayerId, parsePlayerId } from '$lib/playerId';
+import {
 	findPlayerByMetadata,
 	getPlayer,
 	savePlayerFeedback,
 	upsertPlayerProfile
 } from '$lib/server/players';
 import { getScoreboardStats } from '$lib/server/scoreboard';
-import { parsePlayerId } from '$lib/playerId';
 import { parsePlayClient } from '$lib/playClient';
 
 function parseTimeRemainingMs(value: FormDataEntryValue | null): number {
@@ -27,6 +34,17 @@ function readTimezone(formData: FormData): string | null {
 		return null;
 	}
 	return timezone;
+}
+
+const emptyRebuttal: RebuttalOffer = { card: null, position: 0, total: 0 };
+
+async function todayRebuttal(playerId: string, today: string): Promise<RebuttalOffer> {
+	try {
+		return await offerRebuttalCard({ playerId, today });
+	} catch (error) {
+		console.error('Error offering a rebuttal:', error);
+		return emptyRebuttal;
+	}
 }
 
 export const actions: Actions = {
@@ -49,9 +67,11 @@ export const actions: Actions = {
 				answers.push((formData.get(`answer-${i}`) as string) || '');
 			}
 
-			const puzzle = await loadOrCreatePuzzle(localDateInTimezone(timezone));
+			const today = localDateInTimezone(timezone);
+			const puzzle = await loadOrCreatePuzzle(today);
 			const existing = await getPlayForPlayerDate(playerId, puzzle.date);
 			if (existing) {
+				const rebuttal = await todayRebuttal(playerId, puzzle.date);
 				return {
 					success: true,
 					alreadyPlayed: true,
@@ -59,6 +79,13 @@ export const actions: Actions = {
 					answers: existing.answers,
 					score: existing.score,
 					timeRemainingMs: existing.timeRemainingMs,
+					profane: existing.profane,
+					rebuttalPositions: existing.rebuttalPositions,
+					rebuttalVotes: existing.rebuttalVotes,
+					yesProbabilities: existing.yesProbabilities,
+					rebuttalCard: rebuttal.card,
+					rebuttalPosition: rebuttal.position,
+					rebuttalTotal: rebuttal.total,
 					player: await getPlayer(playerId),
 					scoreboard: await getScoreboardStats(puzzle.date, playerId, existing.score)
 				};
@@ -80,6 +107,7 @@ export const actions: Actions = {
 				timeRemainingMs,
 				client
 			});
+			const rebuttal = await todayRebuttal(playerId, puzzle.date);
 
 			return {
 				success: true,
@@ -87,6 +115,13 @@ export const actions: Actions = {
 				answers: saved.answers,
 				score: saved.score,
 				timeRemainingMs: saved.timeRemainingMs,
+				profane: saved.profane,
+				rebuttalPositions: saved.rebuttalPositions,
+				rebuttalVotes: saved.rebuttalVotes,
+				yesProbabilities: saved.yesProbabilities,
+				rebuttalCard: rebuttal.card,
+				rebuttalPosition: rebuttal.position,
+				rebuttalTotal: rebuttal.total,
 				player: await getPlayer(playerId),
 				scoreboard: await getScoreboardStats(puzzle.date, playerId, saved.score)
 			};
@@ -143,6 +178,28 @@ export const actions: Actions = {
 		}
 	},
 
+	submitRebuttal: async ({ request }) => {
+		try {
+			const formData = await request.formData();
+			const playerId = parsePlayerId(formData.get('player_id'));
+			const timezone = readTimezone(formData);
+			const position = Number.parseInt(String(formData.get('position') ?? ''), 10);
+			if (!playerId || !timezone || !Number.isInteger(position)) {
+				return { success: true, sent: false };
+			}
+
+			const result = await submitOwnRebuttal({
+				playerId,
+				today: localDateInTimezone(timezone),
+				position
+			});
+			return { success: true, ...result };
+		} catch (error) {
+			console.error('Error in submitRebuttal action:', error);
+			return { success: true, sent: false };
+		}
+	},
+
 	share: async ({ request }) => {
 		const formData = await request.formData();
 		const playerId = parsePlayerId(formData.get('player_id'));
@@ -153,6 +210,36 @@ export const actions: Actions = {
 
 		await recordPlayShare(playerId, date);
 		return { success: true };
+	},
+
+	rebuttal: async ({ request }) => {
+		try {
+			const formData = await request.formData();
+			const playerId = parsePlayerId(formData.get('player_id'));
+			const timezone = readTimezone(formData);
+			if (!playerId || !timezone) {
+				return { success: true, ...emptyRebuttal };
+			}
+
+			const today = localDateInTimezone(timezone);
+			const vote = formData.get('vote');
+			const rebuttalId = formData.get('rebuttal_id');
+			const offer =
+				formData.get('skip') === '1' && isPlayerId(rebuttalId)
+					? await skipRebuttalCard({ playerId, rebuttalId, today })
+					: (vote === 'yes' || vote === 'no') && isPlayerId(rebuttalId)
+						? await castRebuttalVote({
+								playerId,
+								rebuttalId,
+								vote,
+								today
+							})
+						: await offerRebuttalCard({ playerId, today });
+			return { success: true, card: offer.card, position: offer.position, total: offer.total };
+		} catch (error) {
+			console.error('Error in rebuttal action:', error);
+			return { success: true, ...emptyRebuttal };
+		}
 	},
 
 	restore: async ({ request }) => {

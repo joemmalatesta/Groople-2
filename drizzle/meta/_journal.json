@@ -71,6 +71,20 @@
       "when": 1791011555939,
       "tag": "0009_play_share_count",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791574683368,
+      "tag": "0010_rebuttals",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792423778125,
+      "tag": "0011_rebuttal_vote_holds",
+      "breakpoints": true
     }
   ]
 }
