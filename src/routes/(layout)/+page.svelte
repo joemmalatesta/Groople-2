@@ -640,8 +640,8 @@
 				seconds={timer}
 				active={screen === 'puzzle' && puzzleReady && !answersSubmitted && !isValidating}
 			/>
-			<Rules open={rulesOpen} onClose={() => (rulesOpen = false)} />
 		{/if}
+		<Rules open={rulesOpen} onClose={() => (rulesOpen = false)} />
 		<Scorecard
 			open={scoresModalOpen}
 			judge={judgeCards}
