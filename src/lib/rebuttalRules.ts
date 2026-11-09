@@ -81,12 +81,6 @@ export function isRebuttalCard(value: unknown): value is RebuttalCard {
 	);
 }
 
-export type RebuttalCandidate = {
-	answerId: string;
-	yesProbability: number | null;
-	profaneProbability: number | null;
-};
-
 export function isInRebuttalBand(
 	yesProbability: number | null,
 	profaneProbability: number | null
@@ -97,18 +91,6 @@ export function isInRebuttalBand(
 		yesProbability < REBUTTAL_YES_CEILING &&
 		(profaneProbability == null || profaneProbability < PROFANE_HIDE_AT)
 	);
-}
-
-export function pickRebuttalAnswerIds(candidates: RebuttalCandidate[]): string[] {
-	return candidates
-		.filter(
-			(candidate) =>
-				candidate.answerId.length > 0 &&
-				isInRebuttalBand(candidate.yesProbability, candidate.profaneProbability)
-		)
-		.sort((left, right) => (right.yesProbability ?? 0) - (left.yesProbability ?? 0))
-		.slice(0, MAX_REBUTTALS_PER_PLAY)
-		.map((candidate) => candidate.answerId);
 }
 
 /**

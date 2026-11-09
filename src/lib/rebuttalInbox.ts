@@ -90,11 +90,30 @@ function isInboxItem(value: unknown): value is RebuttalInboxItem {
 	);
 }
 
+const INBOX_RETRY_DELAYS_MS = [500, 1500];
+
+/** Retries network and server failures. Returns null when every attempt fails. */
 export async function fetchRebuttalInbox(params: {
 	playerId: string;
 	cursor: string | null;
-}): Promise<RebuttalInboxPage> {
-	const empty: RebuttalInboxPage = { items: [], nextCursor: null };
+}): Promise<RebuttalInboxPage | null> {
+	for (let attempt = 0; ; attempt += 1) {
+		const result = await fetchInboxOnce(params);
+		if (result !== 'retry') {
+			return result;
+		}
+		const delay = INBOX_RETRY_DELAYS_MS[attempt];
+		if (delay === undefined) {
+			return null;
+		}
+		await new Promise((resolve) => setTimeout(resolve, delay));
+	}
+}
+
+async function fetchInboxOnce(params: {
+	playerId: string;
+	cursor: string | null;
+}): Promise<RebuttalInboxPage | null | 'retry'> {
 	try {
 		const response = await fetch('/api/rebuttal-inbox', {
 			method: 'POST',
@@ -108,21 +127,21 @@ export async function fetchRebuttalInbox(params: {
 			})
 		});
 		if (!response.ok) {
-			return empty;
+			return response.status >= 500 ? 'retry' : null;
 		}
 		const body: unknown = await response.json();
 		if (!body || typeof body !== 'object') {
-			return empty;
+			return null;
 		}
 		const page = body as Partial<RebuttalInboxPage>;
 		if (!Array.isArray(page.items) || !page.items.every(isInboxItem)) {
-			return empty;
+			return null;
 		}
 		return {
 			items: page.items,
 			nextCursor: typeof page.nextCursor === 'string' ? page.nextCursor : null
 		};
 	} catch {
-		return empty;
+		return 'retry';
 	}
 }

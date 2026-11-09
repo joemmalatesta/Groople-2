@@ -15,9 +15,7 @@ import {
 	isInRebuttalBand,
 	MAX_REBUTTAL_CARDS_PER_DAY,
 	MAX_REBUTTALS_PER_PLAY,
-	pickRebuttalAnswerIds,
 	pickRebuttalDraw,
-	PROFANE_HIDE_AT,
 	rebuttalDrawEntries,
 	resolveRebuttal,
 	type RebuttalCard,
@@ -25,62 +23,6 @@ import {
 } from '$lib/rebuttalRules';
 
 export type { RebuttalCard };
-
-export async function countPlays(playerId: string): Promise<number> {
-	const [row] = await db
-		.select({ count: sql<number>`count(*)::int` })
-		.from(plays)
-		.where(eq(plays.playerId, playerId));
-	return row?.count ?? 0;
-}
-
-export async function ensurePlayerRebuttals(playerId: string, today: string): Promise<void> {
-	const yesterday = addUtcDays(today, -1);
-	const rows = await db
-		.select({
-			id: answers.id,
-			yesProbability: answers.yesProbability,
-			profaneProbability: answers.profaneProbability,
-			puzzleDate: plays.date,
-			rebuttalId: rebuttals.id
-		})
-		.from(answers)
-		.innerJoin(plays, eq(plays.id, answers.playId))
-		.leftJoin(rebuttals, eq(rebuttals.answerId, answers.id))
-		.where(and(eq(plays.playerId, playerId), inArray(plays.date, [yesterday, today])));
-
-	const byDate = new Map<string, typeof rows>();
-	for (const row of rows) {
-		const list = byDate.get(row.puzzleDate) ?? [];
-		list.push(row);
-		byDate.set(row.puzzleDate, list);
-	}
-
-	for (const [puzzleDate, playRows] of byDate) {
-		const answerIds = pickRebuttalAnswerIds(
-			playRows
-				.filter((row) => row.rebuttalId == null)
-				.map((row) => ({
-					answerId: row.id,
-					yesProbability: row.yesProbability,
-					profaneProbability: row.profaneProbability
-				}))
-		);
-		if (answerIds.length === 0) {
-			continue;
-		}
-		await db
-			.insert(rebuttals)
-			.values(
-				answerIds.map((answerId) => ({
-					answerId,
-					authorPlayerId: playerId,
-					puzzleDate
-				}))
-			)
-			.onConflictDoNothing({ target: rebuttals.answerId });
-	}
-}
 
 export async function submitOwnRebuttal(params: {
 	playerId: string;
@@ -92,80 +34,81 @@ export async function submitOwnRebuttal(params: {
 		return empty;
 	}
 
-	const [row] = await db
-		.select({
-			id: answers.id,
-			playId: answers.playId,
-			answer: answers.answer,
-			correct: answers.correct,
-			yesProbability: answers.yesProbability,
-			profaneProbability: answers.profaneProbability
-		})
-		.from(answers)
-		.innerJoin(plays, eq(answers.playId, plays.id))
-		.where(
-			and(
-				eq(plays.playerId, params.playerId),
-				eq(plays.date, params.today),
-				eq(answers.position, params.position)
-			)
-		)
-		.limit(1);
-
-	if (!row || row.answer.trim().length === 0 || row.correct) {
-		return empty;
-	}
-	if (row.profaneProbability != null && row.profaneProbability >= PROFANE_HIDE_AT) {
-		return empty;
-	}
-
-	const [existing] = await db
-		.select({ id: rebuttals.id })
-		.from(rebuttals)
-		.where(eq(rebuttals.answerId, row.id))
-		.limit(1);
-
-	if (!existing) {
-		if (!isInRebuttalBand(row.yesProbability, row.profaneProbability)) {
+	return db.transaction(async (tx) => {
+		const [play] = await tx
+			.select({ id: plays.id })
+			.from(plays)
+			.where(and(eq(plays.playerId, params.playerId), eq(plays.date, params.today)))
+			.limit(1)
+			.for('update');
+		if (!play) {
 			return empty;
 		}
 
-		const [countRow] = await db
-			.select({ count: sql<number>`count(*)::int` })
-			.from(rebuttals)
-			.innerJoin(answers, eq(answers.id, rebuttals.answerId))
-			.where(eq(answers.playId, row.playId));
-		if ((countRow?.count ?? 0) >= MAX_REBUTTALS_PER_PLAY) {
-			return empty;
-		}
-
-		await db
-			.insert(rebuttals)
-			.values({
-				answerId: row.id,
-				authorPlayerId: params.playerId,
-				puzzleDate: params.today
+		const [row] = await tx
+			.select({
+				id: answers.id,
+				answer: answers.answer,
+				correct: answers.correct,
+				yesProbability: answers.yesProbability,
+				profaneProbability: answers.profaneProbability
 			})
-			.onConflictDoNothing({ target: rebuttals.answerId });
-	}
+			.from(answers)
+			.where(and(eq(answers.playId, play.id), eq(answers.position, params.position)))
+			.limit(1);
 
-	const votes = await db
-		.select({ vote: rebuttalVotes.vote })
-		.from(rebuttalVotes)
-		.innerJoin(rebuttals, eq(rebuttals.id, rebuttalVotes.rebuttalId))
-		.where(eq(rebuttals.answerId, row.id));
-
-	let yes = 0;
-	let no = 0;
-	for (const vote of votes) {
-		if (vote.vote === 'yes') {
-			yes += 1;
-		} else if (vote.vote === 'no') {
-			no += 1;
+		if (!row || row.answer.trim().length === 0) {
+			return empty;
 		}
-	}
 
-	return { sent: true, yes, no };
+		const [existing] = await tx
+			.select({ id: rebuttals.id })
+			.from(rebuttals)
+			.where(eq(rebuttals.answerId, row.id))
+			.limit(1);
+
+		if (!existing) {
+			if (row.correct || !isInRebuttalBand(row.yesProbability, row.profaneProbability)) {
+				return empty;
+			}
+
+			const [countRow] = await tx
+				.select({ count: sql<number>`count(*)::int` })
+				.from(rebuttals)
+				.innerJoin(answers, eq(answers.id, rebuttals.answerId))
+				.where(eq(answers.playId, play.id));
+			if ((countRow?.count ?? 0) >= MAX_REBUTTALS_PER_PLAY) {
+				return empty;
+			}
+
+			await tx
+				.insert(rebuttals)
+				.values({
+					answerId: row.id,
+					authorPlayerId: params.playerId,
+					puzzleDate: params.today
+				})
+				.onConflictDoNothing({ target: rebuttals.answerId });
+		}
+
+		const votes = await tx
+			.select({ vote: rebuttalVotes.vote })
+			.from(rebuttalVotes)
+			.innerJoin(rebuttals, eq(rebuttals.id, rebuttalVotes.rebuttalId))
+			.where(eq(rebuttals.answerId, row.id));
+
+		let yes = 0;
+		let no = 0;
+		for (const vote of votes) {
+			if (vote.vote === 'yes') {
+				yes += 1;
+			} else if (vote.vote === 'no') {
+				no += 1;
+			}
+		}
+
+		return { sent: true, yes, no };
+	});
 }
 
 export type RebuttalOffer = {

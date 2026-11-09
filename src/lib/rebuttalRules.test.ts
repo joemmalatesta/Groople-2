@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	canJudgeRebuttals,
 	decidingVotes,
-	pickRebuttalAnswerIds,
+	isInRebuttalBand,
 	rebuttalDrawEntries,
 	resolveRebuttal
 } from './rebuttalRules';
@@ -23,29 +23,18 @@ describe('canJudgeRebuttals', () => {
 	});
 });
 
-describe('pickRebuttalAnswerIds', () => {
-	it('keeps the two highest scores above 0.40', () => {
-		expect(
-			pickRebuttalAnswerIds([
-				{ answerId: 'under', yesProbability: 0.2, profaneProbability: 0.1 },
-				{ answerId: 'high', yesProbability: 0.58, profaneProbability: 0.1 },
-				{ answerId: 'edge', yesProbability: 0.4, profaneProbability: 0.1 },
-				{ answerId: 'mid', yesProbability: 0.5, profaneProbability: 0.1 },
-				{ answerId: 'third', yesProbability: 0.45, profaneProbability: 0.1 }
-			])
-		).toEqual(['high', 'mid']);
+describe('isInRebuttalBand', () => {
+	it('keeps scores strictly between 0.40 and 0.60', () => {
+		expect(isInRebuttalBand(0.41, 0.1)).toBe(true);
+		expect(isInRebuttalBand(0.59, null)).toBe(true);
+		expect(isInRebuttalBand(0.4, 0.1)).toBe(false);
+		expect(isInRebuttalBand(0.6, 0.1)).toBe(false);
+		expect(isInRebuttalBand(null, null)).toBe(false);
 	});
 
-	it('skips a point, the floor, and profane wording', () => {
-		expect(
-			pickRebuttalAnswerIds([
-				{ answerId: 'point', yesProbability: 0.6, profaneProbability: 0.1 },
-				{ answerId: 'floor', yesProbability: 0.4, profaneProbability: 0.1 },
-				{ answerId: 'unscored', yesProbability: 0.55, profaneProbability: null },
-				{ answerId: 'profane', yesProbability: 0.55, profaneProbability: 0.6 },
-				{ answerId: 'ok', yesProbability: 0.41, profaneProbability: 0.59 }
-			])
-		).toEqual(['unscored', 'ok']);
+	it('skips profane wording', () => {
+		expect(isInRebuttalBand(0.55, 0.6)).toBe(false);
+		expect(isInRebuttalBand(0.55, 0.59)).toBe(true);
 	});
 });
 

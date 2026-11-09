@@ -16,6 +16,7 @@
 	export let canRebuttal = false;
 	export let rebuttalSent = false;
 	export let rebuttalBusy = false;
+	export let rebuttalSending = false;
 	export let rebuttalOpen = true;
 	export let rebuttalYes = 0;
 	export let rebuttalNo = 0;
@@ -67,7 +68,7 @@
 			<ArrowClockwise
 				size={14}
 				weight="bold"
-				class="transition-transform duration-500 ease-out {rebuttalBusy ? 'rotate-180' : ''}"
+				class="transition-transform duration-500 ease-out {rebuttalSending ? 'rotate-180' : ''}"
 			/>
 		</button>
 	{/if}
@@ -99,7 +100,7 @@
 			<div class="min-w-0 flex-1 pl-8 md:pl-0">
 				{#if reveal}
 					<p
-						class="text-base text-dark wrap-break-word dark:text-light {textClass} {answerPad} {hasAnswer
+						class="text-base wrap-break-word text-dark dark:text-light {textClass} {answerPad} {hasAnswer
 							? ''
 							: 'italic'}"
 						in:fade={{ delay: fadeDelay, duration: 280 }}
@@ -108,7 +109,7 @@
 					</p>
 				{:else}
 					<p
-						class="text-base text-dark wrap-break-word dark:text-light {textClass} {answerPad} {hasAnswer
+						class="text-base wrap-break-word text-dark dark:text-light {textClass} {answerPad} {hasAnswer
 							? ''
 							: 'italic'}"
 					>

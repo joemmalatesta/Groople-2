@@ -128,8 +128,8 @@
 	let rebuttalHasMore = true;
 	let rebuttalLoading = false;
 	let rebuttalsLoaded = false;
+	let rebuttalsFailed = false;
 	let rebuttalRequest = 0;
-	let rebuttalScroller: HTMLDivElement | undefined;
 	let direction = 1;
 	let switching = false;
 	let nameValue = player?.name ?? '';
@@ -265,16 +265,17 @@
 		if (rebuttalsLoaded || rebuttalLoading) {
 			return;
 		}
-		await loadRebuttalPage(true);
-		rebuttalsLoaded = true;
+		rebuttalsFailed = false;
+		rebuttalsLoaded = await loadRebuttalPage(true);
+		rebuttalsFailed = !rebuttalsLoaded;
 	}
 
-	async function loadRebuttalPage(reset: boolean) {
+	async function loadRebuttalPage(reset: boolean): Promise<boolean> {
 		if (rebuttalLoading && !reset) {
-			return;
+			return false;
 		}
 		if (!reset && !rebuttalHasMore) {
-			return;
+			return true;
 		}
 		const request = ++rebuttalRequest;
 		rebuttalLoading = true;
@@ -283,12 +284,17 @@
 			cursor: reset ? null : rebuttalCursor
 		});
 		if (request !== rebuttalRequest) {
-			return;
+			return false;
+		}
+		if (!page) {
+			rebuttalLoading = false;
+			return false;
 		}
 		rebuttalItems = reset ? page.items : [...rebuttalItems, ...page.items];
 		rebuttalCursor = page.nextCursor;
 		rebuttalHasMore = page.nextCursor !== null;
 		rebuttalLoading = false;
+		return true;
 	}
 
 	function loadWhenSeen(node: HTMLElement, active: boolean) {
@@ -952,12 +958,21 @@
 													{/each}
 												</div>
 											{:else}
-												<div
-													bind:this={rebuttalScroller}
-													data-rebuttal-scroll
-													class="h-[40vh] overflow-y-auto pr-3 font-inter"
-												>
-													{#if rebuttalsLoaded && rebuttalItems.length === 0}
+												<div data-rebuttal-scroll class="h-[40vh] overflow-y-auto pr-3 font-inter">
+													{#if rebuttalsFailed}
+														<div
+															class="flex h-full flex-col items-center justify-center gap-2 px-10 text-center text-sm text-gray-400"
+														>
+															<p>Couldn't load your rebuttals.</p>
+															<button
+																type="button"
+																class="cursor-pointer underline underline-offset-2 hover:text-dark dark:hover:text-light"
+																on:click={ensureRebuttalsLoaded}
+															>
+																Try again
+															</button>
+														</div>
+													{:else if rebuttalsLoaded && rebuttalItems.length === 0}
 														<p
 															class="flex h-full items-center justify-center px-10 text-center text-sm text-gray-400"
 														>

@@ -113,16 +113,15 @@
 	$: boardAnswers = archive?.answers ?? answerArray;
 	$: boardCorrect = archive?.validationResults ?? responseArray;
 	$: viewingPast = archive !== null;
-	$: rebuttalEligible = boardAnswers.reduce((count, answer, index) => {
-		if ((answer ?? '').trim().length === 0 || boardCorrect[index] || profaneAnswers[index]) {
-			return count;
-		}
-		if (!isInRebuttalBand(yesProbabilities[index] ?? null, null)) {
-			return count;
-		}
-		return count + 1;
-	}, 0);
-	$: rebuttalPossible = Math.min(MAX_REBUTTALS_PER_PLAY, rebuttalEligible);
+	$: rebuttalRows = boardAnswers.map(
+		(answer, index) =>
+			Boolean(sentRebuttals[index]) ||
+			((answer ?? '').trim().length > 0 &&
+				!boardCorrect[index] &&
+				!profaneAnswers[index] &&
+				isInRebuttalBand(yesProbabilities[index] ?? null, null))
+	);
+	$: rebuttalPossible = Math.min(MAX_REBUTTALS_PER_PLAY, rebuttalRows.filter(Boolean).length);
 	$: rebuttalUsed = sentRebuttals.filter(Boolean).length;
 	$: rebuttalLeft = Math.max(0, rebuttalPossible - rebuttalUsed);
 	$: puzzleReady = Boolean(playerId) && letter.length > 0 && categories.length === 12;
@@ -591,14 +590,10 @@
 											disabled={scoresModalOpen || viewingPast}
 											recordedAnswer={boardAnswers[index] ?? ''}
 											reveal={viewingPast || revealAnswers}
-											canRebuttal={!viewingPast &&
-												(boardAnswers[index] ?? '').trim().length > 0 &&
-												!boardCorrect[index] &&
-												!profaneAnswers[index] &&
-												(Boolean(sentRebuttals[index]) ||
-													isInRebuttalBand(yesProbabilities[index] ?? null, null))}
+											canRebuttal={!viewingPast && rebuttalRows[index]}
 											rebuttalSent={sentRebuttals[index] ?? false}
 											rebuttalBusy={rebuttalBusyPosition !== 0}
+											rebuttalSending={rebuttalBusyPosition === index + 1}
 											rebuttalOpen={rebuttalLeft > 0}
 											rebuttalYes={rebuttalVotes[index]?.yes ?? 0}
 											rebuttalNo={rebuttalVotes[index]?.no ?? 0}
