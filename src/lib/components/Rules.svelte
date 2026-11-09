@@ -16,7 +16,10 @@
 <svelte:window on:keydown={onKeydown} />
 
 {#if open}
-	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4" transition:fade={{ duration: 160 }}>
+	<div
+		class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+		transition:fade={{ duration: 160 }}
+	>
 		<button
 			type="button"
 			class="absolute inset-0 bg-dark/50 dark:bg-black/60"
@@ -44,28 +47,27 @@
 
 			<div class="mt-5 space-y-6 text-sm leading-relaxed text-dark/80 dark:text-light/80">
 				<section>
-					<h3 class="text-base font-medium text-dark dark:text-light">Scoring</h3>
-					<p class="mt-2">
+					<p>
 						You get 100 seconds and 12 categories. Every answer has to start with the day's letter.
 					</p>
 					<p class="mt-2">
-						An answer that fits its category is one point. Your score is how many of the 12 you got.
-						The highlighted rows are the ones that counted.
+						An answer that fits its category is one point. You may not use adjectives that do not
+						materially change the answer. Your score is how many of the 12 categories you answered
+						correctly. The highlighted rows are the ones that were accepted by the judge.
 					</p>
 				</section>
 
 				<section>
-					<h3 class="text-base font-medium text-dark dark:text-light">Rebuttals</h3>
+					<h3 class="text-lg font-medium text-dark dark:text-light">Rebuttals</h3>
 					<p class="mt-2">
-						A close call can be sent to other players. You get two a day. Tap Rebuttal on the right.
-						They see the letter, the category, and the answer, and vote yes or no.
+						A close call (not all rejected answers) can be rebuttaled and sent to other players for
+						voting. You can rebuttal up to two answers per day. Voters see the category and answer,
+						and vote yes or no. You may also be prompted to vote on rebuttals after you've played
+						twice.
 					</p>
 					<p class="mt-2">
-						After you send it, a green dot marks the yes votes and a red dot marks the no votes. The
-						numbers stay gray.
-					</p>
-					<p class="mt-2">
-						Two votes that agree decide it. If they say yes, that answer becomes a point.
+						After you send it, a green dot marks the yes votes and a red dot marks the no votes, and
+						the answer is decided by a best of three voting (2 yeses and you get that point).
 					</p>
 				</section>
 			</div>
