@@ -1,6 +1,7 @@
-import { noul, TypeSafeClient, type Fetch, type NoulQuestion } from '@typesafe-ai/sdk';
+import { noul, TypeSafeClient, type EntryType, type Fetch, type NoulQuestion } from '@typesafe-ai/sdk';
 import { env } from '$env/dynamic/private';
 import { startsWithRequiredLetter } from './letterCheck';
+import { displayFilterCriteria, displayFilterFocus } from './displayFilter';
 import { criteria, examples, gradeFocus, standard } from './gradePrompt';
 
 export { startsWithRequiredLetter };
@@ -11,6 +12,7 @@ export const VALID_YES_PROBABILITY_THRESHOLD = 0.6;
 export type GradeResult = {
 	correct: boolean[];
 	yesProbabilities: Array<number | null>;
+	profaneProbabilities: Array<number | null>;
 };
 
 function getClient(fetchFn?: Fetch): TypeSafeClient {
@@ -44,6 +46,7 @@ export async function gradeAnswers(params: {
 	const count = params.categories.length;
 	const correct = Array.from({ length: count }, () => false);
 	const yesProbabilities: Array<number | null> = Array.from({ length: count }, () => null);
+	const profaneProbabilities: Array<number | null> = Array.from({ length: count }, () => null);
 	const toJudge: AnswerSlot[] = [];
 
 	for (let i = 0; i < count; i += 1) {
@@ -56,11 +59,13 @@ export async function gradeAnswers(params: {
 	}
 
 	if (toJudge.length === 0) {
-		return { correct, yesProbabilities };
+		return { correct, yesProbabilities, profaneProbabilities };
 	}
 
 	const answersState: Record<string, { category: string; response: string }> = {};
 	const questions: Record<string, NoulQuestion> = {};
+	const wordingState: Record<string, { response: string }> = {};
+	const wordingQuestions: Record<string, NoulQuestion> = {};
 
 	for (const slot of toJudge) {
 		const id = `answer_${slot.index + 1}`;
@@ -75,30 +80,52 @@ export async function gradeAnswers(params: {
 			},
 			criteria
 		);
+		wordingState[id] = { response: slot.response };
+		wordingQuestions[id] = noul(
+			{
+				question: `Is \`answers.${id}.response\` a slur, or a demeaning word used to call a person?`,
+				focus: displayFilterFocus
+			},
+			displayFilterCriteria
+		);
 	}
 
 	const client = getClient(params.fetch);
-	const { answers } = await client.systemOne({
-		model: 'jev-latest',
-		state: {
-			game: 'Scattergories',
-			required_letter: params.letter.toUpperCase(),
-			standard,
-			examples,
-			answers: answersState
-		},
-		questions
-	});
+	// The wording check stays on its own request so the category standard, which allows rude wording, is not in its state.
+	const [{ answers }, { answers: wording }] = await Promise.all([
+		client.systemOne({
+			model: 'jev-latest',
+			state: {
+				game: 'Scattergories',
+				required_letter: params.letter.toUpperCase(),
+				standard,
+				examples,
+				answers: answersState
+			} as EntryType,
+			questions
+		}),
+		client.systemOne({
+			model: 'jev-latest',
+			state: {
+				task: 'Slur check only. Do not judge category fit.',
+				answers: wordingState
+			},
+			questions: wordingQuestions
+		})
+	]);
 
 	for (const slot of toJudge) {
 		const id = `answer_${slot.index + 1}`;
 		const judgment = answers[id];
-		if (judgment?.type !== 'noul') {
-			continue;
+		if (judgment?.type === 'noul') {
+			yesProbabilities[slot.index] = judgment.noul;
+			correct[slot.index] = judgment.noul >= VALID_YES_PROBABILITY_THRESHOLD;
 		}
-		yesProbabilities[slot.index] = judgment.noul;
-		correct[slot.index] = judgment.noul >= VALID_YES_PROBABILITY_THRESHOLD;
+		const wordingJudgment = wording[id];
+		if (wordingJudgment?.type === 'noul') {
+			profaneProbabilities[slot.index] = wordingJudgment.noul;
+		}
 	}
 
-	return { correct, yesProbabilities };
+	return { correct, yesProbabilities, profaneProbabilities };
 }

@@ -5,6 +5,7 @@ import { readTodaysLocalPlay, syncLocalPlayBoard } from '$lib/localPlay';
 import type { SavedPlay } from '$lib/savedPlay';
 import type { PlayerProfile } from '$lib/playerProfile';
 import type { ScoreboardStats } from '$lib/scoreboard';
+import type { RebuttalCard } from '$lib/rebuttalRules';
 
 export const ssr = false;
 
@@ -15,18 +16,28 @@ type PuzzleResponse = {
 	play: SavedPlay | null;
 	player: PlayerProfile | null;
 	scoreboard: ScoreboardStats | null;
+	decidedRebuttalIds: string[];
+	rebuttalCard: RebuttalCard | null;
+	rebuttalPosition: number;
+	rebuttalTotal: number;
+};
+
+const emptyPuzzle = {
+	date: '',
+	categories: [] as string[],
+	letter: '',
+	play: null as SavedPlay | null,
+	player: null as PlayerProfile | null,
+	scoreboard: null as ScoreboardStats | null,
+	decidedRebuttalIds: [] as string[],
+	rebuttalCard: null as RebuttalCard | null,
+	rebuttalPosition: 0,
+	rebuttalTotal: 0
 };
 
 export const load: PageLoad = async ({ fetch }) => {
 	if (!browser) {
-		return {
-			date: '',
-			categories: [] as string[],
-			letter: '',
-			play: null as SavedPlay | null,
-			player: null as PlayerProfile | null,
-			scoreboard: null as ScoreboardStats | null
-		};
+		return emptyPuzzle;
 	}
 
 	const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -60,6 +71,10 @@ export const load: PageLoad = async ({ fetch }) => {
 	const localPlay = readTodaysLocalPlay();
 	return {
 		...puzzle,
+		decidedRebuttalIds: puzzle.decidedRebuttalIds ?? [],
+		rebuttalCard: null,
+		rebuttalPosition: 0,
+		rebuttalTotal: 0,
 		play: localPlay
 			? {
 					...localPlay,

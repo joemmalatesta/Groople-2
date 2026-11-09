@@ -1,9 +1,10 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { answers, plays } from '$lib/server/db/schema';
+import { answers, plays, rebuttals, rebuttalVotes } from '$lib/server/db/schema';
 import type { DailyPuzzle } from '$lib/server/loadOrCreatePuzzle';
 import type { GradeResult } from '$lib/server/gradeAnswers';
 import type { PlayClient } from '$lib/playClient';
+import { PROFANE_HIDE_AT } from '$lib/rebuttalRules';
 import type { SavedPlay } from '$lib/savedPlay';
 import { recordPlayerPlay } from './players';
 
@@ -43,6 +44,24 @@ export async function getPlayForPlayerDate(
 
 	const byPosition = new Map(answerRows.map((row) => [row.position, row]));
 
+	const voteRows = await db
+		.select({ position: answers.position, vote: rebuttalVotes.vote })
+		.from(rebuttals)
+		.innerJoin(answers, eq(rebuttals.answerId, answers.id))
+		.leftJoin(rebuttalVotes, eq(rebuttalVotes.rebuttalId, rebuttals.id))
+		.where(eq(answers.playId, play.id));
+
+	const tallies = new Map<number, { yes: number; no: number }>();
+	for (const row of voteRows) {
+		const tally = tallies.get(row.position) ?? { yes: 0, no: 0 };
+		if (row.vote === 'yes') {
+			tally.yes += 1;
+		} else if (row.vote === 'no') {
+			tally.no += 1;
+		}
+		tallies.set(row.position, tally);
+	}
+
 	return {
 		answers: Array.from({ length: 12 }, (_, index) => byPosition.get(index + 1)?.answer ?? ''),
 		validationResults: Array.from(
@@ -50,8 +69,52 @@ export async function getPlayForPlayerDate(
 			(_, index) => byPosition.get(index + 1)?.correct ?? false
 		),
 		score: play.score,
-		timeRemainingMs: play.timeRemainingMs
+		timeRemainingMs: play.timeRemainingMs,
+		rebuttalPositions: [...tallies.keys()],
+		rebuttalVotes: [...tallies.entries()].map(([position, tally]) => ({
+			position,
+			yes: tally.yes,
+			no: tally.no
+		})),
+		yesProbabilities: Array.from(
+			{ length: 12 },
+			(_, index) => byPosition.get(index + 1)?.yesProbability ?? null
+		),
+		profane: Array.from({ length: 12 }, (_, index) => {
+			const probability = byPosition.get(index + 1)?.profaneProbability;
+			return probability != null && probability >= PROFANE_HIDE_AT;
+		})
 	};
+}
+
+function playDate(value: unknown): string | null {
+	if (typeof value === 'string') {
+		const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+		return match?.[1] ?? null;
+	}
+
+	if (value instanceof Date && !Number.isNaN(value.getTime())) {
+		return value.toISOString().slice(0, 10);
+	}
+
+	return null;
+}
+
+export async function listPlayedDates(playerId: string): Promise<string[]> {
+	const rows = await db
+		.select({ date: plays.date })
+		.from(plays)
+		.where(eq(plays.playerId, playerId))
+		.orderBy(asc(plays.date));
+
+	const dates: string[] = [];
+	for (const row of rows) {
+		const date = playDate(row.date);
+		if (date) {
+			dates.push(date);
+		}
+	}
+	return dates;
 }
 
 export async function recordPlayShare(playerId: string, date: string): Promise<void> {
@@ -80,33 +143,38 @@ export async function persistPlay(params: {
 	});
 
 	try {
-		const inserted = await db
-			.insert(plays)
-			.values({
-				date: params.puzzle.date,
-				playerId: params.playerId,
-				score,
-				timeRemainingMs: params.timeRemainingMs,
-				client: params.client ?? null
-			})
-			.returning({ id: plays.id });
+		await db.transaction(async (tx) => {
+			const inserted = await tx
+				.insert(plays)
+				.values({
+					date: params.puzzle.date,
+					playerId: params.playerId,
+					score,
+					timeRemainingMs: params.timeRemainingMs,
+					client: params.client ?? null
+				})
+				.returning({ id: plays.id });
 
-		const playId = inserted[0]?.id;
-		if (!playId) {
-			throw new Error('Failed to save play');
-		}
+			const playId = inserted[0]?.id;
+			if (!playId) {
+				throw new Error('Failed to save play');
+			}
 
-		await db.insert(answers).values(
-			params.puzzle.slots.map((slot, index) => ({
-				playId,
-				position: slot.position,
-				categoryId: slot.categoryId,
-				answer: (params.answers[index] ?? '').trim(),
-				correct: params.grade.correct[index] ?? false,
-				yesProbability: params.grade.yesProbabilities[index] ?? null,
-				rebuttaled: false
-			}))
-		);
+			await tx
+				.insert(answers)
+				.values(
+					params.puzzle.slots.map((slot, index) => ({
+						playId,
+						position: slot.position,
+						categoryId: slot.categoryId,
+						answer: (params.answers[index] ?? '').trim(),
+						correct: params.grade.correct[index] ?? false,
+						yesProbability: params.grade.yesProbabilities[index] ?? null,
+						profaneProbability: params.grade.profaneProbabilities[index] ?? null,
+						rebuttaled: false
+					}))
+				);
+		});
 	} catch (error) {
 		if (!isUniqueViolation(error)) {
 			throw error;

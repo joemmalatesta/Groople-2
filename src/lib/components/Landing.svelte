@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { unseenRebuttals } from '$lib/rebuttalInbox';
+
 	export let name = '';
 	export let firstVisit = true;
 	export let dateLabel = '';
 	export let onStart: () => void = () => {};
 	export let onTutorial: () => void = () => {};
+	export let onRebuttals: () => void = () => {};
 
 	$: greeting = firstVisit
 		? name
@@ -13,6 +16,23 @@
 			? `Welcome back, ${name}`
 			: 'Welcome back';
 </script>
+
+{#snippet rebuttalsButton()}
+	<button
+		type="button"
+		class="relative w-full cursor-pointer rounded-md border border-gray-300 p-3 text-dark dark:border-gray-600 dark:text-light"
+		on:click={onRebuttals}
+	>
+		Rebuttals
+		{#if $unseenRebuttals > 0}
+			<span
+				class="absolute top-1/2 right-3 flex h-6 min-w-6 -translate-y-1/2 items-center justify-center rounded-full bg-dark px-1 text-xs text-light dark:bg-light dark:text-dark"
+			>
+				{$unseenRebuttals}
+			</span>
+		{/if}
+	</button>
+{/snippet}
 
 <div class="flex flex-1 flex-col items-center justify-center px-4 text-center">
 	{#if dateLabel}
@@ -38,6 +58,7 @@
 			>
 				Tutorial
 			</button>
+			{@render rebuttalsButton()}
 			<button
 				type="button"
 				class="w-full cursor-pointer rounded-md border border-gray-300 p-3 text-dark dark:border-gray-600 dark:text-light"
@@ -60,6 +81,7 @@
 			>
 				Tutorial
 			</button>
+			{@render rebuttalsButton()}
 		{/if}
 	</div>
 </div>
