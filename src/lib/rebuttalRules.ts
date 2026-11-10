@@ -1,4 +1,3 @@
-export const REBUTTAL_YES_FLOOR = 0.4;
 /** A category score at this line is a point. Matches the grader's yes threshold. */
 export const REBUTTAL_YES_CEILING = 0.6;
 /** At or above this line the wording is hidden and gets no rebuttal. */
@@ -81,13 +80,13 @@ export function isRebuttalCard(value: unknown): value is RebuttalCard {
 	);
 }
 
-export function isInRebuttalBand(
+/** Any answer the grader judged and rejected, unless its wording is flagged. */
+export function isRebuttable(
 	yesProbability: number | null,
 	profaneProbability: number | null
 ): boolean {
 	return (
 		yesProbability != null &&
-		yesProbability > REBUTTAL_YES_FLOOR &&
 		yesProbability < REBUTTAL_YES_CEILING &&
 		(profaneProbability == null || profaneProbability < PROFANE_HIDE_AT)
 	);

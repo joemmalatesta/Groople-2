@@ -12,7 +12,7 @@ import { addUtcDays } from '$lib/server/playerStreak';
 import {
 	canJudgeRebuttals,
 	decidingVotes,
-	isInRebuttalBand,
+	isRebuttable,
 	MAX_REBUTTAL_CARDS_PER_DAY,
 	MAX_REBUTTALS_PER_PLAY,
 	pickRebuttalDraw,
@@ -68,7 +68,7 @@ export async function submitOwnRebuttal(params: {
 			.limit(1);
 
 		if (!existing) {
-			if (row.correct || !isInRebuttalBand(row.yesProbability, row.profaneProbability)) {
+			if (row.correct || !isRebuttable(row.yesProbability, row.profaneProbability)) {
 				return empty;
 			}
 
