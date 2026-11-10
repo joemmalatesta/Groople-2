@@ -68,7 +68,7 @@ export async function submitOwnRebuttal(params: {
 			.limit(1);
 
 		if (!existing) {
-			if (row.correct || !isRebuttable(row.yesProbability, row.profaneProbability)) {
+			if (row.correct || !isRebuttable(row.answer, row.yesProbability, row.profaneProbability)) {
 				return empty;
 			}
 

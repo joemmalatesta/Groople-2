@@ -80,12 +80,17 @@ export function isRebuttalCard(value: unknown): value is RebuttalCard {
 	);
 }
 
-/** Any answer the grader judged and rejected, unless its wording is flagged. */
+/**
+ * Any rejected answer with at least two letters or digits, unless its wording is flagged.
+ * A wrong-letter answer is never sent to the grader, so its yes probability is null.
+ */
 export function isRebuttable(
+	answer: string,
 	yesProbability: number | null,
 	profaneProbability: number | null
 ): boolean {
 	return (
+		answer.replace(/[^\p{L}\p{N}]/gu, '').length >= 2 &&
 		yesProbability != null &&
 		yesProbability < REBUTTAL_YES_CEILING &&
 		(profaneProbability == null || profaneProbability < PROFANE_HIDE_AT)

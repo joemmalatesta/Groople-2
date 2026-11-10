@@ -25,19 +25,26 @@ describe('canJudgeRebuttals', () => {
 
 describe('isRebuttable', () => {
 	it('allows any judged answer below the point line', () => {
-		expect(isRebuttable(0, 0.1)).toBe(true);
-		expect(isRebuttable(0.2, null)).toBe(true);
-		expect(isRebuttable(0.59, null)).toBe(true);
-		expect(isRebuttable(0.6, 0.1)).toBe(false);
+		expect(isRebuttable('kale', 0, 0.1)).toBe(true);
+		expect(isRebuttable('kale', 0.2, null)).toBe(true);
+		expect(isRebuttable('kale', 0.59, null)).toBe(true);
+		expect(isRebuttable('kale', 0.6, 0.1)).toBe(false);
 	});
 
-	it('skips answers the grader never judged', () => {
-		expect(isRebuttable(null, null)).toBe(false);
+	it('skips wrong-letter answers, which the grader never judges', () => {
+		expect(isRebuttable('lettuce', null, null)).toBe(false);
+	});
+
+	it('skips one-letter answers', () => {
+		expect(isRebuttable('K', 0.1, null)).toBe(false);
+		expect(isRebuttable(' k. ', 0.1, null)).toBe(false);
+		expect(isRebuttable('', 0.1, null)).toBe(false);
+		expect(isRebuttable('KO', 0.1, null)).toBe(true);
 	});
 
 	it('skips profane wording', () => {
-		expect(isRebuttable(0.2, 0.6)).toBe(false);
-		expect(isRebuttable(0.2, 0.59)).toBe(true);
+		expect(isRebuttable('kale', 0.2, 0.6)).toBe(false);
+		expect(isRebuttable('kale', 0.2, 0.59)).toBe(true);
 	});
 });
 
