@@ -22,7 +22,7 @@
 	import type { ScoreboardStats } from '$lib/scoreboard';
 	import type { SavedPlay, RebuttalTally } from '$lib/savedPlay';
 	import {
-		isInRebuttalBand,
+		isRebuttable,
 		isRebuttalCard,
 		MAX_REBUTTALS_PER_PLAY,
 		type RebuttalCard
@@ -116,10 +116,9 @@
 	$: rebuttalRows = boardAnswers.map(
 		(answer, index) =>
 			Boolean(sentRebuttals[index]) ||
-			((answer ?? '').trim().length > 0 &&
-				!boardCorrect[index] &&
+			(!boardCorrect[index] &&
 				!profaneAnswers[index] &&
-				isInRebuttalBand(yesProbabilities[index] ?? null, null))
+				isRebuttable(answer ?? '', yesProbabilities[index] ?? null, null))
 	);
 	$: rebuttalPossible = Math.min(MAX_REBUTTALS_PER_PLAY, rebuttalRows.filter(Boolean).length);
 	$: rebuttalUsed = sentRebuttals.filter(Boolean).length;

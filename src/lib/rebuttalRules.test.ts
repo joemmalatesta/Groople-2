@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	canJudgeRebuttals,
 	decidingVotes,
-	isInRebuttalBand,
+	isRebuttable,
 	rebuttalDrawEntries,
 	resolveRebuttal
 } from './rebuttalRules';
@@ -23,18 +23,28 @@ describe('canJudgeRebuttals', () => {
 	});
 });
 
-describe('isInRebuttalBand', () => {
-	it('keeps scores strictly between 0.40 and 0.60', () => {
-		expect(isInRebuttalBand(0.41, 0.1)).toBe(true);
-		expect(isInRebuttalBand(0.59, null)).toBe(true);
-		expect(isInRebuttalBand(0.4, 0.1)).toBe(false);
-		expect(isInRebuttalBand(0.6, 0.1)).toBe(false);
-		expect(isInRebuttalBand(null, null)).toBe(false);
+describe('isRebuttable', () => {
+	it('allows any judged answer below the point line', () => {
+		expect(isRebuttable('kale', 0, 0.1)).toBe(true);
+		expect(isRebuttable('kale', 0.2, null)).toBe(true);
+		expect(isRebuttable('kale', 0.59, null)).toBe(true);
+		expect(isRebuttable('kale', 0.6, 0.1)).toBe(false);
+	});
+
+	it('skips wrong-letter answers, which the grader never judges', () => {
+		expect(isRebuttable('lettuce', null, null)).toBe(false);
+	});
+
+	it('skips one-letter answers', () => {
+		expect(isRebuttable('K', 0.1, null)).toBe(false);
+		expect(isRebuttable(' k. ', 0.1, null)).toBe(false);
+		expect(isRebuttable('', 0.1, null)).toBe(false);
+		expect(isRebuttable('KO', 0.1, null)).toBe(true);
 	});
 
 	it('skips profane wording', () => {
-		expect(isInRebuttalBand(0.55, 0.6)).toBe(false);
-		expect(isInRebuttalBand(0.55, 0.59)).toBe(true);
+		expect(isRebuttable('kale', 0.2, 0.6)).toBe(false);
+		expect(isRebuttable('kale', 0.2, 0.59)).toBe(true);
 	});
 });
 
