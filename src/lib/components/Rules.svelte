@@ -60,9 +60,8 @@
 				<section>
 					<h3 class="text-lg font-medium text-dark dark:text-light">Rebuttals</h3>
 					<p class="mt-2">
-						Any rejected answer can be rebuttaled and sent to other players for voting, except
-						answers with the wrong letter, one-letter answers, and slurs. You can rebuttal up to two
-						answers per day. Voters see the category and answer, and vote yes or no. You may also be
+						Any rejected answer can be rebuttaled and sent to other players for voting. You can
+						rebuttal up to two answers per day. Voters see the category and answer, and vote yes or no. You may also be
 						prompted to vote on rebuttals after you've played twice.
 					</p>
 					<p class="mt-2">
