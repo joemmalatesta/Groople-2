@@ -105,6 +105,7 @@
 		}, 260);
 		if (mode === 'rebuttals') {
 			noteRebuttalsOpened();
+			void refreshRebuttals();
 			showRebuttals = true;
 			showCalendar = false;
 			return;
@@ -180,7 +181,7 @@
 		view = 'scores';
 		showRebuttals = rebuttalsOnly || startView === 'rebuttals';
 		showCalendar = !rebuttalsOnly && startView === 'calendar';
-		void ensureRebuttalsLoaded();
+		void refreshRebuttals();
 		if (showRebuttals) {
 			noteRebuttalsOpened();
 		}
@@ -261,16 +262,18 @@
 		markRequestedRebuttalsSeen();
 	}
 
-	async function ensureRebuttalsLoaded() {
-		if (rebuttalsLoaded || rebuttalLoading) {
+	async function refreshRebuttals() {
+		rebuttalsFailed = false;
+		const loaded = await loadRebuttalPage(true);
+		if (loaded === null) {
 			return;
 		}
-		rebuttalsFailed = false;
-		rebuttalsLoaded = await loadRebuttalPage(true);
+		rebuttalsLoaded = rebuttalsLoaded || loaded;
 		rebuttalsFailed = !rebuttalsLoaded;
 	}
 
-	async function loadRebuttalPage(reset: boolean): Promise<boolean> {
+	/** Resolves to null when a newer request replaced this one. */
+	async function loadRebuttalPage(reset: boolean): Promise<boolean | null> {
 		if (rebuttalLoading && !reset) {
 			return false;
 		}
@@ -284,7 +287,7 @@
 			cursor: reset ? null : rebuttalCursor
 		});
 		if (request !== rebuttalRequest) {
-			return false;
+			return null;
 		}
 		if (!page) {
 			rebuttalLoading = false;
@@ -967,7 +970,7 @@
 															<button
 																type="button"
 																class="cursor-pointer underline underline-offset-2 hover:text-dark dark:hover:text-light"
-																on:click={ensureRebuttalsLoaded}
+																on:click={refreshRebuttals}
 															>
 																Try again
 															</button>
